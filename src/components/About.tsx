@@ -1,6 +1,6 @@
 import React from 'react';
 import { BookOpen, Compass, Target, GraduationCap, MapPin, Briefcase, Download, FileText } from 'lucide-react';
-import profilePortrait from '../assets/images/hussnain_portrait_1790809063651.jpg';
+import { ProfilePhoto } from './ProfilePhoto';
 import { SITE_CONFIG } from '../data/social';
 
 interface AboutProps {
@@ -33,14 +33,15 @@ export const About: React.FC<AboutProps> = ({ onOpenResumeModal }) => {
 
               {/* Official Profile Portrait — Subtly rounded editorial frame */}
               <div className="relative mb-5 rounded-lg overflow-hidden border-2 border-[#002B97]/20 bg-[#F1F3F5] aspect-[3/4] max-w-sm mx-auto shadow-xs group">
-                <img
-                  src={profilePortrait}
+                <ProfilePhoto
+                  size="lg"
+                  rounded="rounded-lg"
+                  className="w-full h-full aspect-[3/4] transition-transform duration-300 group-hover:scale-[1.02]"
                   alt="Hussnain Ansari — Professional Portrait"
-                  className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.02]"
                 />
 
                 {/* Editorial photo caption overlay */}
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#0E1730]/90 via-[#0E1730]/60 to-transparent p-4 text-white">
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#0E1730]/90 via-[#0E1730]/60 to-transparent p-4 text-white pointer-events-none">
                   <span className="font-mono-tech text-[10px] uppercase tracking-wider text-[#2563EB] font-bold block mb-0.5">
                     HUSSNAIN ANSARI
                   </span>

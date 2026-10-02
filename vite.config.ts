@@ -7,15 +7,23 @@ export default defineConfig(() => {
   return {
     base: './',
     plugins: [react(), tailwindcss()],
+    define: {
+      __BUILD_DATE__: JSON.stringify(
+        new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
+      ),
+      __BUILD_TIMESTAMP__: JSON.stringify(Date.now()),
+    },
     resolve: {
       alias: {
         '@': path.resolve(process.cwd(), '.'),
       },
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
       hmr: process.env.DISABLE_HMR !== 'true',
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
   };
 });

@@ -6,8 +6,10 @@ export const CustomCursor: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Only enable on fine pointer devices (desktop mouse)
+    // Disable on touch devices and for reduced motion preferences
+    if (typeof window === 'undefined') return;
     if (window.matchMedia('(pointer: coarse)').matches) return;
+    if (window.matchMedia('(hover: none)').matches) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -49,6 +51,7 @@ export const CustomCursor: React.FC = () => {
       style={{
         transform: `translate3d(${position.x}px, ${position.y}px, 0)`
       }}
+      aria-hidden="true"
     >
       <div
         className={`w-3.5 h-3.5 rounded-full border border-[#002B97] transition-all duration-150 ${

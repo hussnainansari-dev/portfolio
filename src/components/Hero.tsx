@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowRight, ArrowDownRight, MapPin, Sparkles, Download } from 'lucide-react';
-import profilePortrait from '../assets/images/hussnain_portrait_1790809063651.jpg';
+import { ProfilePhoto } from './ProfilePhoto';
 import { SITE_CONFIG } from '../data/social';
 
 interface HeroProps {
@@ -100,13 +100,12 @@ export const Hero: React.FC<HeroProps> = ({ onExploreJourney, onViewProjects, on
               {/* Card Header with Canonical Photo Plate */}
               <div className="flex items-center justify-between border-b border-[#0E1730]/10 pb-4 mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-[#002B97] shrink-0 bg-[#E6EDF6] shadow-xs">
-                    <img
-                      src={profilePortrait}
-                      alt="Hussnain Ansari — Professional Portrait"
-                      className="w-full h-full object-cover object-top"
-                    />
-                  </div>
+                  <ProfilePhoto
+                    size="md"
+                    eager={true}
+                    className="border-2 border-[#002B97] shadow-xs"
+                    alt="Hussnain Ansari — Professional Portrait"
+                  />
                   <div>
                     <span className="font-editorial text-base font-bold text-[#0E1730] leading-none block">
                       Hussnain Ansari

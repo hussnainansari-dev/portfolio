@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Linkedin, Github, Instagram, MapPin, Phone, Send, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Mail, Linkedin, Github, Instagram, MapPin, Phone, Send, CheckCircle2, ArrowRight, Copy, Check } from 'lucide-react';
 import { SITE_CONFIG } from '../data/social';
 
 export const ContactSection: React.FC = () => {
@@ -10,6 +10,29 @@ export const ContactSection: React.FC = () => {
   });
   const [status, setStatus] = useState<'idle' | 'preparing' | 'opened' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [copiedEmail, setCopiedEmail] = useState(false);
+
+  const handleCopyEmail = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(SITE_CONFIG.email);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = SITE_CONFIG.email;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedEmail(true);
+      setTimeout(() => setCopiedEmail(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy email:', err);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,12 +105,12 @@ export const ContactSection: React.FC = () => {
                 <span className="text-[11px] text-[#002B97] font-semibold">Lahore</span>
               </div>
 
-              {/* Email */}
-              <a
-                href={`mailto:${SITE_CONFIG.email}`}
-                className="p-4 bg-white rounded-lg border border-[#0E1730]/10 hover:border-[#002B97] transition-colors flex items-center justify-between group shadow-xs"
-              >
-                <div className="flex items-center gap-3">
+              {/* Email Card with Copy button */}
+              <div className="p-4 bg-white rounded-lg border border-[#0E1730]/10 flex items-center justify-between group shadow-xs">
+                <a
+                  href={`mailto:${SITE_CONFIG.email}`}
+                  className="flex items-center gap-3 hover:text-[#002B97] transition-colors"
+                >
                   <div className="w-8 h-8 rounded bg-[#E6EDF6] text-[#002B97] flex items-center justify-center">
                     <Mail className="w-4 h-4" />
                   </div>
@@ -99,9 +122,17 @@ export const ContactSection: React.FC = () => {
                       {SITE_CONFIG.email}
                     </span>
                   </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-[#002B97] group-hover:translate-x-1 transition-transform" />
-              </a>
+                </a>
+
+                <button
+                  onClick={handleCopyEmail}
+                  className="p-1.5 text-[#111827]/60 hover:text-[#002B97] hover:bg-[#E6EDF6] rounded transition-colors cursor-pointer"
+                  title="Copy email address"
+                  aria-label="Copy email address"
+                >
+                  {copiedEmail ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
 
               {/* LinkedIn */}
               <a
@@ -194,25 +225,30 @@ export const ContactSection: React.FC = () => {
               <div className="p-6 bg-[#E6EDF6] rounded-lg border border-[#002B97]/30 text-center space-y-3">
                 <CheckCircle2 className="w-8 h-8 text-[#002B97] mx-auto" />
                 <h4 className="font-editorial text-xl font-bold text-[#0E1730]">
-                  Email Client Opened
+                  Email App Opened
                 </h4>
                 <p className="text-xs sm:text-sm text-[#0E1730]/80 font-sans max-w-md mx-auto">
-                  Your mail app was launched with your draft message. If it didn't open automatically,
-                  you can write directly to{' '}
-                  <a
-                    href={`mailto:${SITE_CONFIG.email}`}
-                    className="font-bold underline text-[#002B97]"
-                  >
-                    {SITE_CONFIG.email}
-                  </a>
-                  .
+                  Your default email client was launched. If your mail client did not open automatically,
+                  copy the email below:
                 </p>
+                <div className="flex items-center justify-center gap-2 pt-1">
+                  <code className="bg-white px-3 py-1 rounded border border-[#002B97]/20 text-xs font-mono-tech font-bold text-[#002B97]">
+                    {SITE_CONFIG.email}
+                  </code>
+                  <button
+                    onClick={handleCopyEmail}
+                    className="px-3 py-1 bg-[#002B97] text-white text-xs font-mono-tech rounded hover:bg-[#0E1730] transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    {copiedEmail ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedEmail ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
                 <button
                   onClick={() => {
                     setStatus('idle');
                     setFormData({ name: '', email: '', message: '' });
                   }}
-                  className="mt-3 px-4 py-2 bg-[#002B97] text-white text-xs font-mono-tech rounded hover:bg-[#0E1730] transition-colors cursor-pointer"
+                  className="mt-3 px-4 py-2 bg-transparent text-[#002B97] text-xs font-mono-tech rounded hover:underline cursor-pointer"
                 >
                   Write Another Note
                 </button>
@@ -279,14 +315,25 @@ export const ContactSection: React.FC = () => {
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={status === 'preparing'}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 bg-[#002B97] hover:bg-[#0E1730] text-white text-xs sm:text-sm font-mono-tech uppercase font-semibold rounded transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{status === 'preparing' ? 'Opening Mail Client...' : 'Open Email Client'}</span>
-                </button>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={status === 'preparing'}
+                    className="inline-flex items-center justify-center gap-2 px-7 py-3 bg-[#002B97] hover:bg-[#0E1730] text-white text-xs sm:text-sm font-mono-tech uppercase font-semibold rounded transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{status === 'preparing' ? 'Preparing Draft...' : 'Open in email app'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCopyEmail}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-[#F1F3F5] hover:bg-[#E6EDF6] text-[#0E1730] text-xs font-mono-tech uppercase font-semibold rounded transition-colors cursor-pointer"
+                  >
+                    {copiedEmail ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedEmail ? 'Email Copied!' : 'Copy Email Address'}</span>
+                  </button>
+                </div>
               </form>
             )}
           </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, FileText, ArrowUpRight, Download } from 'lucide-react';
-import profilePortrait from '../assets/images/hussnain_portrait_1790809063651.jpg';
+import { ProfilePhoto } from './ProfilePhoto';
 import { SITE_CONFIG } from '../data/social';
 
 interface NavbarProps {
@@ -40,18 +40,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenResume, activeSection }) =
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
-          {/* Wordmark with canonical portrait thumbnail */}
+          {/* Wordmark with canonical profile photo */}
           <a
             href="#"
             className="text-base sm:text-lg font-bold tracking-tight text-[#0E1730] hover:text-[#002B97] transition-colors flex items-center gap-2.5"
           >
-            <div className="w-7 h-7 rounded-full overflow-hidden border border-[#002B97]/30 shrink-0 bg-[#E6EDF6]">
-              <img
-                src={profilePortrait}
-                alt="Hussnain Ansari"
-                className="w-full h-full object-cover object-top"
-              />
-            </div>
+            <ProfilePhoto
+              size="sm"
+              className="border border-[#002B97]/30"
+              alt="Hussnain Ansari"
+            />
             <div className="flex items-baseline gap-1.5">
               <span className="font-editorial text-xl sm:text-2xl font-bold tracking-tight">Hussnain Ansari</span>
               <span className="hidden sm:inline font-mono-tech text-[11px] text-[#002B97] font-medium tracking-wider">

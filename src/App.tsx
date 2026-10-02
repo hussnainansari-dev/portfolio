@@ -9,15 +9,31 @@ import { CurrentlyLearning } from './components/CurrentlyLearning';
 import { LearningInPublic } from './components/LearningInPublic';
 import { NotesSection } from './components/NotesSection';
 import { ContactSection } from './components/ContactSection';
+import { LiveShareSection } from './components/LiveShareSection';
 import { Footer } from './components/Footer';
 import { ResumeModal } from './components/ResumeModal';
 import { FinovahCaseStudyModal } from './components/FinovahCaseStudyModal';
+import { AdminStudioModal } from './components/AdminStudioModal';
 import { CustomCursor } from './components/CustomCursor';
 
 export default function App() {
   const [resumeOpen, setResumeOpen] = useState(false);
   const [finovahStudyOpen, setFinovahStudyOpen] = useState(false);
+  const [adminStudioOpen, setAdminStudioOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('about');
+
+  // Listen to hash changes for hidden #/admin route
+  useEffect(() => {
+    const checkHash = () => {
+      if (window.location.hash === '#/admin') {
+        setAdminStudioOpen(true);
+      }
+    };
+
+    checkHash();
+    window.addEventListener('hashchange', checkHash);
+    return () => window.removeEventListener('hashchange', checkHash);
+  }, []);
 
   // Track active section on scroll
   useEffect(() => {
@@ -56,9 +72,16 @@ export default function App() {
     }
   };
 
+  const handleCloseAdminStudio = () => {
+    setAdminStudioOpen(false);
+    if (window.location.hash === '#/admin') {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F8F7F3] text-[#111827] flex flex-col font-sans selection:bg-[#E6EDF6] selection:text-[#002B97]">
-      {/* Subtle Desktop Cursor */}
+      {/* Subtle Desktop Cursor (disabled on touch & prefers-reduced-motion) */}
       <CustomCursor />
 
       {/* Clean 3-zone Navigation */}
@@ -103,10 +126,16 @@ export default function App() {
 
         {/* 08 / Contact: Let's Connect */}
         <ContactSection />
+
+        {/* Live Share Section */}
+        <LiveShareSection />
       </main>
 
-      {/* Editorial Footer */}
-      <Footer onOpenResume={() => setResumeOpen(true)} />
+      {/* Editorial Footer with Admin link */}
+      <Footer
+        onOpenResume={() => setResumeOpen(true)}
+        onOpenAdmin={() => setAdminStudioOpen(true)}
+      />
 
       {/* Interactive Modals */}
       <ResumeModal
@@ -117,6 +146,11 @@ export default function App() {
       <FinovahCaseStudyModal
         isOpen={finovahStudyOpen}
         onClose={() => setFinovahStudyOpen(false)}
+      />
+
+      <AdminStudioModal
+        isOpen={adminStudioOpen}
+        onClose={handleCloseAdminStudio}
       />
     </div>
   );
