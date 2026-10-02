@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <!-- Primary Identity & Canonical -->
-    <title>Hussnain Ansari — Accounting & Finance × Business × Data</title>
+    <title>Hussnain Ansari — Portfolio & Learning Archive</title>
     <link rel="canonical" href="https://hussnainansari-dev.github.io/portfolio/" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="theme-color" content="#0E1730" />
+    <meta name="robots" content="index, follow" />
     
     <meta
       name="description"
@@ -18,9 +19,9 @@
     <meta name="keywords" content="Hussnain Ansari, Hussnain Ali, Accounting, Finance, Data Analytics, Business, Python, FINOVAH, UCP Lahore, Student Portfolio" />
     
     <!-- OpenGraph Social Cards -->
-    <meta property="og:type" content="profile" />
+    <meta property="og:type" content="website" />
     <meta property="og:url" content="https://hussnainansari-dev.github.io/portfolio/" />
-    <meta property="og:title" content="Hussnain Ansari — Accounting & Finance × Business × Data" />
+    <meta property="og:title" content="Hussnain Ansari — Portfolio & Learning Archive" />
     <meta
       property="og:description"
       content="Personal portfolio of Hussnain Ansari, an ADP Accounting & Finance student at UCP exploring business, data analytics, Python, and practical projects."
@@ -34,7 +35,7 @@
     
     <!-- Twitter Cards -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Hussnain Ansari — Accounting & Finance × Business × Data" />
+    <meta name="twitter:title" content="Hussnain Ansari — Portfolio & Learning Archive" />
     <meta
       name="twitter:description"
       content="Personal portfolio of Hussnain Ansari, an ADP Accounting & Finance student at UCP exploring business, data analytics, Python, and practical projects."
@@ -49,39 +50,57 @@
       rel="stylesheet"
     />
 
-    <!-- Schema.org JSON-LD Structured Data (Phone omitted for privacy) -->
+    <!-- Schema.org JSON-LD Structured Data -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "Person",
-        "name": "Hussnain Ansari",
-        "alternateName": "Hussnain Ali",
-        "jobTitle": "ADP Accounting & Finance Student",
-        "description": "ADP Accounting & Finance student at UCP building capabilities across accounting, business, and data analytics.",
-        "address": {
-          "@type": "PostalAddress",
-          "addressLocality": "Lahore",
-          "addressCountry": "Pakistan"
-        },
-        "alumniOf": {
-          "@type": "EducationalOrganization",
-          "name": "University of Central Punjab (UCP)"
-        },
-        "email": "mailto:hussnainansa7@gmail.com",
-        "sameAs": [
-          "https://github.com/hussnainansari-dev",
-          "https://www.linkedin.com/in/hussnain-ali45/",
-          "https://www.instagram.com/hussnain.ali45/"
-        ],
-        "knowsAbout": [
-          "Accounting & Finance",
-          "Business Fundamentals",
-          "Data Analytics",
-          "Python",
-          "Excel",
-          "SQL",
-          "Customer Service",
-          "Financial Modeling"
+        "@graph": [
+          {
+            "@type": "Person",
+            "@id": "https://hussnainansari-dev.github.io/portfolio/#person",
+            "name": "Hussnain Ansari",
+            "alternateName": "Hussnain Ali",
+            "jobTitle": "ADP Accounting & Finance Student",
+            "description": "ADP Accounting & Finance student at UCP building capabilities across accounting, business, and data analytics.",
+            "url": "https://hussnainansari-dev.github.io/portfolio/",
+            "image": "https://hussnainansari-dev.github.io/portfolio/images/profile.jpg",
+            "address": {
+              "@type": "PostalAddress",
+              "addressLocality": "Lahore",
+              "addressCountry": "Pakistan"
+            },
+            "alumniOf": {
+              "@type": "EducationalOrganization",
+              "name": "University of Central Punjab (UCP)"
+            },
+            "email": "mailto:hussnainansa7@gmail.com",
+            "sameAs": [
+              "https://github.com/hussnainansari-dev",
+              "https://www.linkedin.com/in/hussnain-ali45/",
+              "https://www.instagram.com/hussnain.ali45/"
+            ],
+            "knowsAbout": [
+              "Accounting & Finance",
+              "Business Fundamentals",
+              "Data Analytics",
+              "Python",
+              "Excel",
+              "SQL",
+              "Customer Service",
+              "Financial Modeling"
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://hussnainansari-dev.github.io/portfolio/#website",
+            "url": "https://hussnainansari-dev.github.io/portfolio/",
+            "name": "Hussnain Ansari — Portfolio & Learning Archive",
+            "description": "Personal portfolio of Hussnain Ansari, an ADP Accounting & Finance student at UCP exploring business, data analytics, Python, and practical projects.",
+            "publisher": {
+              "@id": "https://hussnainansari-dev.github.io/portfolio/#person"
+            },
+            "inLanguage": "en-US"
+          }
         ]
       }
     </script>

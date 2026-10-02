@@ -1,5 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, Download, Eye, RotateCcw, AlertTriangle, CheckCircle2, FileText, Image as ImageIcon, ArrowRight } from 'lucide-react';
+import QRCode from 'qrcode';
+import {
+  X,
+  Upload,
+  Download,
+  Eye,
+  AlertTriangle,
+  CheckCircle2,
+  FileText,
+  Image as ImageIcon,
+  QrCode as QrIcon,
+  Globe,
+  Copy,
+  Check
+} from 'lucide-react';
 
 // ARCHITECTURAL NOTE: No client-side password is used here. Static GitHub Pages sites
 // have no server backend or database. Client-side passwords provide false security.
@@ -12,7 +26,7 @@ interface AdminStudioModalProps {
 }
 
 export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'photo' | 'resume'>('photo');
+  const [activeTab, setActiveTab] = useState<'photo' | 'resume' | 'qrcode' | 'seo'>('photo');
 
   // Photo state
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -30,17 +44,53 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
   const [selectedPdfName, setSelectedPdfName] = useState<string | null>(null);
   const [resumeDataUrl, setResumeDataUrl] = useState<string | null>(null);
 
+  // QR Code generator state
+  const [qrUrl, setQrUrl] = useState<string>('https://hussnainansari-dev.github.io/portfolio/');
+  const [qrColorDark, setQrColorDark] = useState<string>('#0E1730');
+  const [qrColorLight, setQrColorLight] = useState<string>('#FFFFFF');
+  const [qrSize, setQrSize] = useState<number>(300);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [copiedLink, setCopiedLink] = useState(false);
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imageObjRef = useRef<HTMLImageElement | null>(null);
+  const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     try {
       const existing = localStorage.getItem('hussnain_preview_profile_photo');
       setPreviewActive(!!existing);
+      if (typeof window !== 'undefined') {
+        const liveOrigin = window.location.href.split('#')[0];
+        setQrUrl(liveOrigin);
+      }
     } catch {
       // Ignore in restricted environments
     }
   }, [isOpen]);
+
+  // Generate QR Code when QR parameters change
+  useEffect(() => {
+    if (activeTab === 'qrcode' && qrCanvasRef.current && qrUrl) {
+      QRCode.toCanvas(
+        qrCanvasRef.current,
+        qrUrl,
+        {
+          width: qrSize,
+          margin: 2,
+          color: {
+            dark: qrColorDark,
+            light: qrColorLight
+          }
+        },
+        (error) => {
+          if (!error && qrCanvasRef.current) {
+            setQrDataUrl(qrCanvasRef.current.toDataURL('image/png'));
+          }
+        }
+      );
+    }
+  }, [activeTab, qrUrl, qrColorDark, qrColorLight, qrSize]);
 
   // Load and render photo to canvas
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,14 +99,12 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate type: JPG, PNG, WebP
     const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!validTypes.includes(file.type)) {
       setPhotoError('Please select a valid image file (JPG, PNG, or WebP).');
       return;
     }
 
-    // Validate size: max 10MB
     if (file.size > 10 * 1024 * 1024) {
       setPhotoError('Selected image is too large. Maximum supported size is 10 MB.');
       return;
@@ -89,7 +137,6 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Target 800x800 square
     const TARGET_SIZE = 800;
     canvas.width = TARGET_SIZE;
     canvas.height = TARGET_SIZE;
@@ -111,11 +158,9 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
 
     ctx.drawImage(img, drawX, drawY, scaledWidth, scaledHeight);
 
-    // Export as high quality 800x800 JPEG (quality 0.85, targeting <=150KB)
     const exportJpeg = canvas.toDataURL('image/jpeg', 0.85);
     setProcessedDataUrl(exportJpeg);
 
-    // Approximate size in KB
     const sizeInBytes = Math.round((exportJpeg.length * 3) / 4);
     setProcessedSizeKb(Math.round(sizeInBytes / 1024));
   };
@@ -127,7 +172,6 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
     }
   };
 
-  // Drag pan handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
     setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
@@ -147,7 +191,6 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
     setIsDragging(false);
   };
 
-  // Preview on this device (stores in localStorage)
   const handleSetLocalPreview = () => {
     if (!processedDataUrl) return;
     setPhotoError(null);
@@ -161,7 +204,6 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
     }
   };
 
-  // Reset preview
   const handleResetPreview = () => {
     try {
       localStorage.removeItem('hussnain_preview_profile_photo');
@@ -173,7 +215,6 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
     }
   };
 
-  // Download profile.jpg
   const handleDownloadProfileJpg = () => {
     if (!processedDataUrl) return;
     const link = document.createElement('a');
@@ -185,7 +226,6 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
     setActionSuccess('Downloaded profile.jpg! Follow the 4-step deployment instructions below to publish.');
   };
 
-  // Resume PDF handler
   const handleResumeFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -211,6 +251,27 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
     document.body.removeChild(link);
   };
 
+  const handleDownloadQrPng = () => {
+    if (!qrDataUrl) return;
+    const link = document.createElement('a');
+    link.href = qrDataUrl;
+    link.download = 'hussnain-portfolio-qr.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setActionSuccess('Downloaded portfolio QR code (PNG)!');
+  };
+
+  const handleCopyQrUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(qrUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {
+      // Fallback
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -223,7 +284,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
               ADMIN STUDIO
             </span>
             <span className="text-white/40">/</span>
-            <span className="text-xs font-mono-tech text-white/80">Asset & Publishing Hub</span>
+            <span className="text-xs font-mono-tech text-white/80">Internal Publishing &amp; Asset Hub</span>
           </div>
 
           <button
@@ -239,36 +300,59 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
         <div className="bg-[#E6EDF6] border-b border-[#002B97]/20 px-6 py-2.5 flex items-start gap-2.5 text-xs text-[#002B97]">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           <p className="leading-relaxed">
-            <strong>Static Hosting Notice:</strong> GitHub Pages has no server database. Local uploads cannot
-            modify the public website directly. Use this studio to crop, optimize, and test locally, then download the
-            file and commit it to GitHub.
+            <strong>Static Architecture Notice:</strong> Static GitHub Pages hosting has no database backend.
+            Use this internal tool suite to prepare, preview, and export high-performance assets locally before committing.
           </p>
         </div>
 
-        {/* Tab switcher */}
-        <div className="flex border-b border-[#0E1730]/10 px-6 pt-3 bg-[#F8F7F3] gap-2">
+        {/* Tab Switcher */}
+        <div className="flex flex-wrap border-b border-[#0E1730]/10 px-6 pt-3 bg-[#F8F7F3] gap-2">
           <button
             onClick={() => setActiveTab('photo')}
-            className={`pb-2.5 px-3 text-xs font-mono-tech uppercase font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+            className={`pb-2.5 px-3 text-xs font-mono-tech uppercase font-semibold flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
               activeTab === 'photo'
                 ? 'border-[#002B97] text-[#002B97]'
                 : 'border-transparent text-[#111827]/60 hover:text-[#0E1730]'
             }`}
           >
             <ImageIcon className="w-3.5 h-3.5" />
-            <span>Profile Photo Studio</span>
+            <span>Profile Photo</span>
           </button>
 
           <button
             onClick={() => setActiveTab('resume')}
-            className={`pb-2.5 px-3 text-xs font-mono-tech uppercase font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+            className={`pb-2.5 px-3 text-xs font-mono-tech uppercase font-semibold flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
               activeTab === 'resume'
                 ? 'border-[#002B97] text-[#002B97]'
                 : 'border-transparent text-[#111827]/60 hover:text-[#0E1730]'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>Resume PDF Studio</span>
+            <span>Resume PDF</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('qrcode')}
+            className={`pb-2.5 px-3 text-xs font-mono-tech uppercase font-semibold flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
+              activeTab === 'qrcode'
+                ? 'border-[#002B97] text-[#002B97]'
+                : 'border-transparent text-[#111827]/60 hover:text-[#0E1730]'
+            }`}
+          >
+            <QrIcon className="w-3.5 h-3.5" />
+            <span>QR Generator</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('seo')}
+            className={`pb-2.5 px-3 text-xs font-mono-tech uppercase font-semibold flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
+              activeTab === 'seo'
+                ? 'border-[#002B97] text-[#002B97]'
+                : 'border-transparent text-[#111827]/60 hover:text-[#0E1730]'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>SEO &amp; Metadata</span>
           </button>
         </div>
 
@@ -288,24 +372,24 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
             </div>
           )}
 
-          {previewActive && (
-            <div className="p-3 bg-[#0E1730] text-white rounded border border-[#2563EB]/40 text-xs font-mono-tech flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Eye className="w-4 h-4 text-[#2563EB]" />
-                <span>Preview active on this device only. Visitors will see the committed repository asset.</span>
-              </div>
-              <button
-                onClick={handleResetPreview}
-                className="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white rounded text-[11px] transition-colors cursor-pointer"
-              >
-                Reset Preview
-              </button>
-            </div>
-          )}
-
+          {/* TAB 1: PROFILE PHOTO STUDIO */}
           {activeTab === 'photo' && (
             <div className="space-y-6">
-              {/* File Selector */}
+              {previewActive && (
+                <div className="p-3 bg-[#0E1730] text-white rounded border border-[#2563EB]/40 text-xs font-mono-tech flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Eye className="w-4 h-4 text-[#2563EB]" />
+                    <span>Preview active on this browser. Visitors will see the committed repository asset.</span>
+                  </div>
+                  <button
+                    onClick={handleResetPreview}
+                    className="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white rounded text-[11px] transition-colors cursor-pointer"
+                  >
+                    Reset Preview
+                  </button>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-2">
                   1. Choose New Portrait Photo (JPG, PNG, WebP · Max 10MB)
@@ -321,7 +405,6 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
               {selectedImage && (
                 <div className="space-y-4 pt-2 border-t border-[#0E1730]/10">
                   <div className="flex flex-col sm:flex-row gap-6 items-start">
-                    {/* Interactive Canvas Viewport */}
                     <div className="space-y-2">
                       <span className="text-xs font-mono-tech text-[#111827]/70 block">
                         Drag to reposition · Square Crop Preview (800×800)
@@ -336,7 +419,6 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                         <canvas ref={canvasRef} className="w-full h-full object-cover" />
                       </div>
 
-                      {/* Zoom control */}
                       <div className="flex items-center gap-3 pt-1">
                         <span className="text-xs font-mono-tech text-[#111827]/70">Zoom:</span>
                         <input
@@ -352,7 +434,6 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                       </div>
                     </div>
 
-                    {/* Metadata & Actions */}
                     <div className="flex-1 space-y-4">
                       <div className="bg-[#F8F7F3] p-4 rounded border border-[#0E1730]/10 space-y-2 text-xs font-mono-tech">
                         <div className="flex justify-between">
@@ -371,7 +452,6 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                         </div>
                       </div>
 
-                      {/* Action buttons */}
                       <div className="flex flex-col sm:flex-row gap-2.5">
                         <button
                           onClick={handleSetLocalPreview}
@@ -392,33 +472,15 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                     </div>
                   </div>
 
-                  {/* 4-Step Instructions to publish to GitHub */}
                   <div className="bg-[#FFFFFF] p-4 rounded-lg border border-[#0E1730]/15 space-y-2.5">
                     <span className="text-xs font-mono-tech uppercase tracking-wider font-bold text-[#002B97] block">
                       How to publish this photo for all visitors:
                     </span>
                     <ol className="list-decimal list-outside pl-4 space-y-1.5 text-xs text-[#111827]/80 font-sans">
-                      <li>
-                        Download the cropped file above (it saves as <code>profile.jpg</code>).
-                      </li>
-                      <li>
-                        Open your GitHub repository:{' '}
-                        <a
-                          href="https://github.com/hussnainansari-dev/portfolio"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#002B97] font-semibold underline"
-                        >
-                          github.com/hussnainansari-dev/portfolio
-                        </a>
-                      </li>
-                      <li>
-                        Navigate into <code>public/images/</code> → click <strong>Add file</strong> → <strong>Upload files</strong>.
-                      </li>
-                      <li>
-                        Select your downloaded <code>profile.jpg</code> and click <strong>Commit changes</strong>.
-                        GitHub Pages will rebuild and deploy your new photo automatically in 1–2 minutes!
-                      </li>
+                      <li>Download the cropped file above (saves as <code>profile.jpg</code>).</li>
+                      <li>Open your repository: <code>github.com/hussnainansari-dev/portfolio</code></li>
+                      <li>Navigate into <code>public/images/</code> → click <strong>Add file</strong> → <strong>Upload files</strong>.</li>
+                      <li>Select your downloaded <code>profile.jpg</code> and commit to <code>main</code>.</li>
                     </ol>
                   </div>
                 </div>
@@ -426,6 +488,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
             </div>
           )}
 
+          {/* TAB 2: RESUME PDF STUDIO */}
           {activeTab === 'resume' && (
             <div className="space-y-6">
               <div>
@@ -462,6 +525,159 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* TAB 3: QR CODE GENERATOR (Using qrcode dependency) */}
+          {activeTab === 'qrcode' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                <div className="md:col-span-6 space-y-4">
+                  <div>
+                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1.5">
+                      Target Link / URL
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={qrUrl}
+                        onChange={(e) => setQrUrl(e.target.value)}
+                        placeholder="https://..."
+                        className="w-full px-3 py-2 text-xs font-mono-tech bg-[#F8F7F3] border border-[#0E1730]/15 rounded text-[#111827] focus:outline-none focus:border-[#002B97]"
+                      />
+                      <button
+                        onClick={handleCopyQrUrl}
+                        className="px-3 py-2 bg-[#E6EDF6] text-[#002B97] hover:bg-[#002B97] hover:text-white rounded text-xs transition-colors cursor-pointer"
+                        title="Copy link"
+                      >
+                        {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs font-mono-tech">
+                    <div>
+                      <label className="block text-[#111827]/70 mb-1">Foreground Color</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={qrColorDark}
+                          onChange={(e) => setQrColorDark(e.target.value)}
+                          className="w-8 h-8 rounded border border-gray-300 cursor-pointer"
+                        />
+                        <span className="text-[11px]">{qrColorDark}</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[#111827]/70 mb-1">Background Color</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={qrColorLight}
+                          onChange={(e) => setQrColorLight(e.target.value)}
+                          className="w-8 h-8 rounded border border-gray-300 cursor-pointer"
+                        />
+                        <span className="text-[11px]">{qrColorLight}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono-tech text-[#111827]/70 mb-1">
+                      Render Size: {qrSize} × {qrSize} px
+                    </label>
+                    <input
+                      type="range"
+                      min="160"
+                      max="600"
+                      step="20"
+                      value={qrSize}
+                      onChange={(e) => setQrSize(parseInt(e.target.value, 10))}
+                      className="w-full accent-[#002B97]"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleDownloadQrPng}
+                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-[#002B97] hover:bg-[#0E1730] text-white text-xs font-mono-tech uppercase font-bold rounded transition-colors shadow-xs cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download QR Code (PNG)</span>
+                  </button>
+                </div>
+
+                <div className="md:col-span-6 flex flex-col items-center justify-center bg-[#F8F7F3] p-6 rounded-lg border border-[#0E1730]/10">
+                  <div className="p-3 bg-white rounded-lg shadow-sm border border-[#0E1730]/10 mb-3">
+                    <canvas ref={qrCanvasRef} className="block" />
+                  </div>
+                  <span className="text-[11px] font-mono-tech text-[#111827]/60 text-center">
+                    Rendered via client-side <code>qrcode</code> engine
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: SEO & METADATA INSPECTOR */}
+          {activeTab === 'seo' && (
+            <div className="space-y-5 text-xs font-mono-tech">
+              <div className="p-4 bg-[#F8F7F3] rounded-lg border border-[#0E1730]/10 space-y-3">
+                <span className="font-bold text-[#002B97] uppercase tracking-wider block">
+                  Production Meta Tags Verification
+                </span>
+                
+                <div className="space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:justify-between border-b border-[#0E1730]/5 pb-1.5 gap-1">
+                    <span className="text-[#111827]/60 font-semibold">Title Tag:</span>
+                    <span className="text-[#0E1730] text-right font-medium">Hussnain Ansari — Portfolio &amp; Learning Archive</span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:justify-between border-b border-[#0E1730]/5 pb-1.5 gap-1">
+                    <span className="text-[#111827]/60 font-semibold">Canonical URL:</span>
+                    <span className="text-[#002B97] text-right truncate">https://hussnainansari-dev.github.io/portfolio/</span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:justify-between border-b border-[#0E1730]/5 pb-1.5 gap-1">
+                    <span className="text-[#111827]/60 font-semibold">Robots:</span>
+                    <span className="text-emerald-700 text-right font-bold">index, follow</span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:justify-between border-b border-[#0E1730]/5 pb-1.5 gap-1">
+                    <span className="text-[#111827]/60 font-semibold">Theme Color:</span>
+                    <span className="text-[#0E1730] text-right">#0E1730 (Navy)</span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:justify-between border-b border-[#0E1730]/5 pb-1.5 gap-1">
+                    <span className="text-[#111827]/60 font-semibold">OpenGraph Card:</span>
+                    <span className="text-[#0E1730] text-right">og-image.jpg (1200×630 sRGB)</span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                    <span className="text-[#111827]/60 font-semibold">Schema.org JSON-LD:</span>
+                    <span className="text-emerald-700 text-right font-bold">Person + WebSite Graph</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Search Snippet Mockup */}
+              <div>
+                <span className="text-xs uppercase font-bold text-[#0E1730] block mb-2">
+                  Google Search Snippet Preview
+                </span>
+                <div className="p-4 bg-white rounded-lg border border-[#0E1730]/15 shadow-xs font-sans space-y-1">
+                  <div className="text-[12px] text-[#202124] flex items-center gap-1.5">
+                    <span className="text-[#002B97] font-mono-tech">https://hussnainansari-dev.github.io</span>
+                    <span className="text-gray-400">› portfolio</span>
+                  </div>
+                  <div className="text-[17px] text-[#1a0dab] font-medium leading-snug hover:underline cursor-pointer">
+                    Hussnain Ansari — Portfolio &amp; Learning Archive
+                  </div>
+                  <div className="text-[13px] text-[#4d5156] leading-relaxed">
+                    Personal portfolio of Hussnain Ansari, an ADP Accounting &amp; Finance student at UCP exploring business, data analytics, Python, and practical projects.
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
