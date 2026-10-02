@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "DM Serif Display", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --color-brand-navy: #0E1730;
+  --color-brand-blue: #002B97;
+  --color-brand-cobalt: #2563EB;
+  --color-brand-ice: #E6EDF6;
+  --color-brand-sky: #F0F5FA;
+  --color-brand-cream: #F8F7F3;
+  --color-brand-surface: #F1F3F5;
+  --color-brand-dark: #111827;
+  --color-brand-gold: #D97706;
+}
+
+/* Custom editorial styles */
+html {
+  font-family: var(--font-sans);
+}
+
+.font-editorial {
+  font-family: var(--font-serif);
+}
+
+.font-mono-tech {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle ledger & grid background patterns */
+.bg-grid-subtle {
+  background-image: linear-gradient(to right, rgba(0, 43, 151, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 43, 151, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.bg-grid-navy {
+  background-image: linear-gradient(to right, rgba(230, 237, 246, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(230, 237, 246, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Modal and Element Fade In Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Accessibility: Respect Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print Stylesheet for clean CV Export */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    font-size: 11pt;
+    line-height: 1.4;
+  }
+  
+  .no-print,
+  nav,
+  button,
+  .print-hidden,
+  .custom-cursor {
+    display: none !important;
+  }
+  
+  .print-break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  a {
+    text-decoration: underline;
+    color: #002B97 !important;
+  }
+}

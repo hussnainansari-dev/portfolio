@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hussnain Ansari — Redirecting</title>
+    <script type="text/javascript">
+      // Clean fallback redirect for GitHub Pages single-page portfolio
+      var path = window.location.pathname;
+      var repo = path.split('/')[1];
+      if (repo && repo.length > 0 && repo.indexOf('.') === -1) {
+        window.location.replace('/' + repo + '/');
+      } else {
+        window.location.replace('/');
+      }
+    </script>
+    <meta http-equiv="refresh" content="0; url=./" />
+  </head>
+  <body style="font-family: sans-serif; padding: 2rem; color: #111827; background: #F8F7F3;">
+    <p>Page not found. Redirecting to <a href="./" style="color: #002B97; font-weight: bold;">Hussnain Ansari Portfolio</a>...</p>
+  </body>
+</html>
