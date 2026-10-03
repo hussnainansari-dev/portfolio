@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: './',
+    base: '/portfolio/',
     plugins: [react(), tailwindcss()],
     define: {
       __BUILD_DATE__: JSON.stringify(
