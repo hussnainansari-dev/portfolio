@@ -13,6 +13,8 @@ export interface SocialLinks {
   resumePdfPath: string;
 }
 
+const baseUrl = import.meta.env.BASE_URL || '/';
+
 export const SITE_CONFIG: SocialLinks = {
   name: 'Hussnain Ansari',
   professionalTitle: 'ADP Accounting & Finance Student · Aspiring Business & Data Analyst',
@@ -25,5 +27,5 @@ export const SITE_CONFIG: SocialLinks = {
   secondaryEmail: 'hussnainansari.dev@gmail.com',
   phone: '0318-9716834',
   location: 'Lahore, Pakistan',
-  resumePdfPath: './resume/Hussnain_Ansari_Resume.pdf'
+  resumePdfPath: `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}resume/Hussnain_Ansari_Resume.pdf`
 };

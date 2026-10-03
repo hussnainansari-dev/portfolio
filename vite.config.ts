@@ -6,7 +6,23 @@ import { defineConfig } from 'vite';
 export default defineConfig(() => {
   return {
     base: '/portfolio/',
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      {
+        name: 'dev-root-redirect',
+        configureServer(server) {
+          server.middlewares.use((req, res, next) => {
+            if (req.url === '/' || req.url === '') {
+              res.writeHead(302, { Location: '/portfolio/' });
+              res.end();
+              return;
+            }
+            next();
+          });
+        },
+      },
+    ],
     define: {
       __BUILD_DATE__: JSON.stringify(
         new Date().toLocaleDateString('en-US', {

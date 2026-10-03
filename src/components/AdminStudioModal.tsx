@@ -12,13 +12,22 @@ import {
   QrCode as QrIcon,
   Globe,
   Copy,
-  Check
+  Check,
+  Plus,
+  Edit,
+  Trash2,
+  Calendar,
+  Layers,
+  BookOpen,
+  ArrowRight,
+  Code
 } from 'lucide-react';
-
-// ARCHITECTURAL NOTE: No client-side password is used here. Static GitHub Pages sites
-// have no server backend or database. Client-side passwords provide false security.
-// This studio contains no secrets and cannot alter public repository files directly;
-// it prepares optimized assets locally and provides exact instructions for git deployment.
+import {
+  LearningEntry,
+  LEARNING_ENTRIES,
+  getLocalJourneyEntries,
+  saveLocalJourneyEntries
+} from '../data/learningJourney';
 
 interface AdminStudioModalProps {
   isOpen: boolean;
@@ -26,7 +35,7 @@ interface AdminStudioModalProps {
 }
 
 export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'photo' | 'resume' | 'qrcode' | 'seo'>('photo');
+  const [activeTab, setActiveTab] = useState<'photo' | 'journey' | 'resume' | 'qrcode' | 'seo'>('photo');
 
   // Photo state
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -52,14 +61,44 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copiedLink, setCopiedLink] = useState(false);
 
+  // Journey Studio state
+  const [localDrafts, setLocalDrafts] = useState<LearningEntry[]>([]);
+  const [isEditingJourney, setIsEditingJourney] = useState(false);
+  const [editingDay, setEditingDay] = useState<number | null>(null);
+  const [jDay, setJDay] = useState<number>(6);
+  const [jDate, setJDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [jTopic, setJTopic] = useState<string>('');
+  const [jTitle, setJTitle] = useState<string>('');
+  const [jWhy, setJWhy] = useState<string>('');
+  const [jLearned, setJLearned] = useState<string>('');
+  const [jConfused, setJConfused] = useState<string>('');
+  const [jChanged, setJChanged] = useState<string>('');
+  const [jPractice, setJPractice] = useState<string>('');
+  const [jProof, setJProof] = useState<string>('');
+  const [jTools, setJTools] = useState<string>('Python 3.12, VS Code');
+  const [jImage, setJImage] = useState<string>('');
+  const [exportedJson, setExportedJson] = useState<string | null>(null);
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imageObjRef = useRef<HTMLImageElement | null>(null);
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  // Load existing states
   useEffect(() => {
     try {
       const existing = localStorage.getItem('hussnain_preview_profile_photo');
       setPreviewActive(!!existing);
+
+      const drafts = getLocalJourneyEntries();
+      setLocalDrafts(drafts);
+      if (drafts.length > 0) {
+        const maxDay = Math.max(...drafts.map((d) => d.dayNumber), ...LEARNING_ENTRIES.map((d) => d.dayNumber));
+        setJDay(maxDay + 1);
+      } else {
+        const maxDay = Math.max(...LEARNING_ENTRIES.map((d) => d.dayNumber));
+        setJDay(maxDay + 1);
+      }
+
       if (typeof window !== 'undefined') {
         const liveOrigin = window.location.href.split('#')[0];
         setQrUrl(liveOrigin);
@@ -69,7 +108,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
     }
   }, [isOpen]);
 
-  // Generate QR Code when QR parameters change
+  // QR Code Generation
   useEffect(() => {
     if (activeTab === 'qrcode' && qrCanvasRef.current && qrUrl) {
       QRCode.toCanvas(
@@ -92,7 +131,9 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
     }
   }, [activeTab, qrUrl, qrColorDark, qrColorLight, qrSize]);
 
-  // Load and render photo to canvas
+  // ==========================================
+  // PHOTO STUDIO HANDLERS
+  // ==========================================
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPhotoError(null);
     setActionSuccess(null);
@@ -209,7 +250,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
       localStorage.removeItem('hussnain_preview_profile_photo');
       window.dispatchEvent(new Event('profile-photo-updated'));
       setPreviewActive(false);
-      setActionSuccess('Local preview reset. Public default photo restored.');
+      setActionSuccess('Local preview reset. Default canonical photo restored.');
     } catch {
       // Ignore
     }
@@ -223,9 +264,116 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    setActionSuccess('Downloaded profile.jpg! Follow the 4-step deployment instructions below to publish.');
+    setActionSuccess('Downloaded profile.jpg! Place it in public/images/profile.jpg and commit to GitHub.');
   };
 
+  // ==========================================
+  // JOURNEY STUDIO HANDLERS
+  // ==========================================
+  const handleEvidenceImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setJImage(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const openNewJourneyForm = () => {
+    setEditingDay(null);
+    const maxDay = Math.max(...localDrafts.map((d) => d.dayNumber), ...LEARNING_ENTRIES.map((d) => d.dayNumber));
+    setJDay(maxDay + 1);
+    setJDate(new Date().toISOString().split('T')[0]);
+    setJTopic('');
+    setJTitle('');
+    setJWhy('');
+    setJLearned('');
+    setJConfused('');
+    setJChanged('');
+    setJPractice('');
+    setJProof('');
+    setJTools('Python 3.12, VS Code');
+    setJImage('');
+    setIsEditingJourney(true);
+  };
+
+  const openEditJourneyForm = (entry: LearningEntry) => {
+    setEditingDay(entry.dayNumber);
+    setJDay(entry.dayNumber);
+    setJDate(entry.date);
+    setJTopic(entry.topic);
+    setJTitle(entry.shortTitle);
+    setJWhy(entry.whyIStudiedIt || '');
+    setJLearned(entry.whatILearned);
+    setJConfused(entry.whatConfusedMe);
+    setJChanged(entry.whatChanged);
+    setJPractice(entry.practice || '');
+    setJProof(entry.proof);
+    setJTools(entry.tools.join(', '));
+    setJImage(entry.image || '');
+    setIsEditingJourney(true);
+  };
+
+  const handleSaveJourneyDraft = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!jTopic.trim() || !jTitle.trim() || !jLearned.trim()) {
+      alert('Please fill in Topic, Title, and What I Learned.');
+      return;
+    }
+
+    const toolsArr = jTools.split(',').map((t) => t.trim()).filter(Boolean);
+
+    const newEntry: LearningEntry = {
+      dayNumber: jDay,
+      date: jDate,
+      topic: jTopic.trim(),
+      shortTitle: jTitle.trim(),
+      whyIStudiedIt: jWhy.trim() || undefined,
+      whatILearned: jLearned.trim(),
+      whatConfusedMe: jConfused.trim(),
+      whatChanged: jChanged.trim(),
+      practice: jPractice.trim() || undefined,
+      proof: jProof.trim() || 'Logged and documented in public notebook.',
+      tools: toolsArr.length > 0 ? toolsArr : ['Python'],
+      image: jImage || undefined,
+      status: 'COMPLETED',
+      isLocalPreview: true
+    };
+
+    const existingOtherDrafts = localDrafts.filter((d) => d.dayNumber !== (editingDay ?? jDay));
+    const updated = [newEntry, ...existingOtherDrafts];
+    setLocalDrafts(updated);
+    saveLocalJourneyEntries(updated);
+    setIsEditingJourney(false);
+    setActionSuccess(`Day ${jDay} saved locally! It now appears on this device's public portfolio preview.`);
+  };
+
+  const handleDeleteJourneyDraft = (dayNum: number) => {
+    const updated = localDrafts.filter((d) => d.dayNumber !== dayNum);
+    setLocalDrafts(updated);
+    saveLocalJourneyEntries(updated);
+    setActionSuccess(`Day ${dayNum} draft removed from local preview.`);
+  };
+
+  const handleExportJourneyJson = () => {
+    const all = [...localDrafts, ...LEARNING_ENTRIES];
+    const sorted = all.sort((a, b) => b.dayNumber - a.dayNumber);
+    const formatted = JSON.stringify(sorted, null, 2);
+    setExportedJson(formatted);
+
+    const blob = new Blob([formatted], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'learningJourney-export.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Resume PDF handlers
   const handleResumeFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -276,15 +424,15 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0E1730]/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
-      <div className="bg-white w-full max-w-3xl rounded-lg shadow-2xl border border-[#0E1730]/20 flex flex-col overflow-hidden max-h-[92vh]">
+      <div className="bg-white w-full max-w-4xl rounded-lg shadow-2xl border border-[#0E1730]/20 flex flex-col overflow-hidden max-h-[92vh]">
         {/* Header */}
         <div className="bg-[#0E1730] text-white px-6 py-4 flex items-center justify-between border-b border-white/10 shrink-0">
           <div className="flex items-center gap-2">
             <span className="font-mono-tech text-xs uppercase tracking-wider text-[#2563EB] font-bold">
-              ADMIN STUDIO
+              PRIVATE ADMIN STUDIO
             </span>
             <span className="text-white/40">/</span>
-            <span className="text-xs font-mono-tech text-white/80">Internal Publishing &amp; Asset Hub</span>
+            <span className="text-xs font-mono-tech text-white/80">Local Authoring &amp; Publishing Helper</span>
           </div>
 
           <button
@@ -296,12 +444,13 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
           </button>
         </div>
 
-        {/* Honest Architecture Notice Banner */}
+        {/* Honest Static Hosting Architecture Notice Banner */}
         <div className="bg-[#E6EDF6] border-b border-[#002B97]/20 px-6 py-2.5 flex items-start gap-2.5 text-xs text-[#002B97]">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           <p className="leading-relaxed">
-            <strong>Static Architecture Notice:</strong> Static GitHub Pages hosting has no database backend.
-            Use this internal tool suite to prepare, preview, and export high-performance assets locally before committing.
+            <strong>Static Hosting Architecture:</strong> GitHub Pages has no database or server backend.
+            This studio provides local draft authoring, image cropping, and live previews on this browser.
+            To publish permanently for all visitors, export or download the assets and commit to your GitHub repository.
           </p>
         </div>
 
@@ -317,6 +466,23 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
           >
             <ImageIcon className="w-3.5 h-3.5" />
             <span>Profile Photo</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('journey')}
+            className={`pb-2.5 px-3 text-xs font-mono-tech uppercase font-semibold flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
+              activeTab === 'journey'
+                ? 'border-[#002B97] text-[#002B97]'
+                : 'border-transparent text-[#111827]/60 hover:text-[#0E1730]'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Journey Studio</span>
+            {localDrafts.length > 0 && (
+              <span className="px-1.5 py-0.2 bg-[#002B97] text-white rounded text-[10px]">
+                {localDrafts.length}
+              </span>
+            )}
           </button>
 
           <button
@@ -359,9 +525,14 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
         {/* Content Body */}
         <div className="overflow-y-auto p-6 space-y-6">
           {actionSuccess && (
-            <div className="p-3 bg-emerald-50 text-emerald-800 rounded border border-emerald-200 text-xs font-mono-tech flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-              <span>{actionSuccess}</span>
+            <div className="p-3 bg-emerald-50 text-emerald-800 rounded border border-emerald-200 text-xs font-mono-tech flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                <span>{actionSuccess}</span>
+              </div>
+              <button onClick={() => setActionSuccess(null)} className="text-emerald-700 hover:text-emerald-900">
+                <X className="w-4 h-4" />
+              </button>
             </div>
           )}
 
@@ -478,9 +649,9 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                     </span>
                     <ol className="list-decimal list-outside pl-4 space-y-1.5 text-xs text-[#111827]/80 font-sans">
                       <li>Download the cropped file above (saves as <code>profile.jpg</code>).</li>
-                      <li>Open your repository: <code>github.com/hussnainansari-dev/portfolio</code></li>
-                      <li>Navigate into <code>public/images/</code> → click <strong>Add file</strong> → <strong>Upload files</strong>.</li>
-                      <li>Select your downloaded <code>profile.jpg</code> and commit to <code>main</code>.</li>
+                      <li>Navigate into your repository at <code>public/images/profile.jpg</code>.</li>
+                      <li>Replace the existing <code>profile.jpg</code> with your new file and commit to <code>main</code>.</li>
+                      <li>GitHub Actions will build and deploy your new photo automatically in 1–2 minutes!</li>
                     </ol>
                   </div>
                 </div>
@@ -488,7 +659,342 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
             </div>
           )}
 
-          {/* TAB 2: RESUME PDF STUDIO */}
+          {/* TAB 2: JOURNEY STUDIO (Create, edit, preview, and export Journey entries) */}
+          {activeTab === 'journey' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#0E1730]/10 pb-4">
+                <div>
+                  <h3 className="font-editorial text-xl font-bold text-[#0E1730]">
+                    Learning in Public Journey Manager
+                  </h3>
+                  <p className="text-xs text-[#4B5563] font-mono-tech">
+                    Author field notes, preview them on your browser, and export for permanent repository publishing.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={openNewJourneyForm}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#002B97] hover:bg-[#0E1730] text-white rounded text-xs font-mono-tech uppercase font-bold transition-colors cursor-pointer shadow-xs"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>New Entry</span>
+                  </button>
+
+                  <button
+                    onClick={handleExportJourneyJson}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#E6EDF6] hover:bg-[#002B97] hover:text-white text-[#002B97] rounded text-xs font-mono-tech uppercase font-bold transition-colors cursor-pointer border border-[#002B97]/20"
+                    title="Export all entries as JSON for repository inclusion"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Export JSON</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Journey Form Modal/Inline */}
+              {isEditingJourney && (
+                <form onSubmit={handleSaveJourneyDraft} className="bg-[#F8F7F3] p-5 sm:p-6 rounded-lg border border-[#0E1730]/15 space-y-4 animate-fadeIn">
+                  <div className="flex items-center justify-between border-b border-[#0E1730]/10 pb-3">
+                    <span className="text-xs font-mono-tech font-bold uppercase text-[#002B97]">
+                      {editingDay ? `Editing Day ${editingDay}` : 'Create New Journey Entry'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingJourney(false)}
+                      className="p-1 text-gray-500 hover:text-gray-800"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                        Day Number *
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        required
+                        value={jDay}
+                        onChange={(e) => setJDay(parseInt(e.target.value, 10) || 1)}
+                        className="w-full px-3 py-2 text-xs font-mono-tech bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                        Date *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={jDate}
+                        onChange={(e) => setJDate(e.target.value)}
+                        className="w-full px-3 py-2 text-xs font-mono-tech bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                      Topic / Field *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Python / Data Structures & Tabular Logic"
+                      value={jTopic}
+                      onChange={(e) => setJTopic(e.target.value)}
+                      className="w-full px-3 py-2 text-xs font-mono-tech bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                      Headline / Title *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Connecting Python Dictionaries to Accounting Ledgers"
+                      value={jTitle}
+                      onChange={(e) => setJTitle(e.target.value)}
+                      className="w-full px-3 py-2 text-xs font-editorial text-base bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                      Why I Studied It
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Why did you explore this today?"
+                      value={jWhy}
+                      onChange={(e) => setJWhy(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                      What I Learned *
+                    </label>
+                    <textarea
+                      rows={3}
+                      required
+                      placeholder="Concrete concepts and mechanics learned..."
+                      value={jLearned}
+                      onChange={(e) => setJLearned(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                      What Confused / Challenged Me
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="What was tricky or required deeper thought?"
+                      value={jConfused}
+                      onChange={(e) => setJConfused(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                      What Changed in My Understanding
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="How has your mental model changed?"
+                      value={jChanged}
+                      onChange={(e) => setJChanged(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                        Practice
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Built automated reconciliation test script"
+                        value={jPractice}
+                        onChange={(e) => setJPractice(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                        Proof / Output
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Ledger validator tested on 50 mock entries"
+                        value={jProof}
+                        onChange={(e) => setJProof(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                      Tools (comma-separated)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Python 3.12, VS Code, Git"
+                      value={jTools}
+                      onChange={(e) => setJTools(e.target.value)}
+                      className="w-full px-3 py-2 text-xs font-mono-tech bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                    />
+                  </div>
+
+                  {/* Evidence Image */}
+                  <div>
+                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                      Evidence Image (Optional screenshot or note)
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleEvidenceImageSelect}
+                        className="text-xs text-gray-600 file:py-1.5 file:px-3 file:bg-[#002B97] file:text-white file:rounded file:border-0 file:text-xs file:font-mono-tech"
+                      />
+                      {jImage && (
+                        <button
+                          type="button"
+                          onClick={() => setJImage('')}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Remove Image
+                        </button>
+                      )}
+                    </div>
+                    {jImage && (
+                      <div className="mt-2 max-h-36 overflow-hidden rounded border border-gray-200">
+                        <img src={jImage} alt="Selected proof" className="max-h-36 object-contain" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#0E1730]/10">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingJourney(false)}
+                      className="px-4 py-2 text-xs font-mono-tech text-gray-600 hover:text-gray-900 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 bg-[#002B97] hover:bg-[#0E1730] text-white text-xs font-mono-tech uppercase font-bold rounded transition-colors cursor-pointer shadow-xs"
+                    >
+                      Save &amp; Preview on This Device
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Drafts & Repository Entries List */}
+              <div className="space-y-4">
+                <span className="text-xs font-mono-tech uppercase font-bold text-[#0E1730] block">
+                  Current Entries (Local Device Drafts + Baseline Repository)
+                </span>
+
+                <div className="divide-y divide-[#0E1730]/10 border border-[#0E1730]/10 rounded-lg overflow-hidden bg-white">
+                  {/* Local Drafts */}
+                  {localDrafts.map((draft) => (
+                    <div key={`draft-${draft.dayNumber}`} className="p-4 bg-amber-50/40 flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-xs font-mono-tech">
+                          <span className="font-bold text-[#002B97]">DAY {String(draft.dayNumber).padStart(2, '0')}</span>
+                          <span className="px-1.5 py-0.2 bg-amber-200 text-amber-900 rounded text-[9px] font-bold uppercase">
+                            Local Device Preview
+                          </span>
+                          <span className="text-gray-400">·</span>
+                          <span className="text-gray-600">{draft.date}</span>
+                        </div>
+                        <h4 className="font-editorial text-base font-bold text-[#0E1730]">{draft.shortTitle}</h4>
+                        <p className="text-xs text-gray-600 line-clamp-1">{draft.whatILearned}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => openEditJourneyForm(draft)}
+                          className="p-1.5 border border-gray-300 rounded hover:bg-gray-100 text-xs font-mono-tech flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteJourneyDraft(draft.dayNumber)}
+                          className="p-1.5 border border-red-200 text-red-600 rounded hover:bg-red-50 text-xs font-mono-tech flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Repository Entries */}
+                  {LEARNING_ENTRIES.map((entry) => (
+                    <div key={`repo-${entry.dayNumber}`} className="p-4 flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-xs font-mono-tech">
+                          <span className="font-bold text-[#002B97]">DAY {String(entry.dayNumber).padStart(2, '0')}</span>
+                          <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded text-[9px] font-bold uppercase">
+                            Published in Repo
+                          </span>
+                          <span className="text-gray-400">·</span>
+                          <span className="text-gray-600">{entry.date}</span>
+                        </div>
+                        <h4 className="font-editorial text-base font-bold text-[#0E1730]">{entry.shortTitle}</h4>
+                        <p className="text-xs text-gray-600 line-clamp-1">{entry.whatILearned}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => openEditJourneyForm(entry)}
+                          className="p-1.5 border border-gray-300 rounded hover:bg-gray-100 text-xs font-mono-tech flex items-center gap-1 cursor-pointer"
+                          title="Copy details into editor as draft"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          <span>Edit as Draft</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Instructions Banner */}
+              <div className="bg-[#FFFFFF] p-4 rounded-lg border border-[#0E1730]/15 space-y-2 text-xs text-[#111827]/80">
+                <span className="font-mono-tech uppercase font-bold text-[#002B97] block">
+                  How to publish new journey entries to GitHub Pages:
+                </span>
+                <ol className="list-decimal list-outside pl-4 space-y-1 font-sans">
+                  <li>Author and preview your entry on this device using <strong>New Entry</strong> above.</li>
+                  <li>Click <strong>Export JSON</strong> to download the updated entries file.</li>
+                  <li>Open <code>src/data/learningJourney.ts</code> in your repository and paste your new day into <code>LEARNING_ENTRIES</code>.</li>
+                  <li>Commit and push to <code>main</code>. GitHub Pages will build and publish your update!</li>
+                </ol>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: RESUME PDF STUDIO */}
           {activeTab === 'resume' && (
             <div className="space-y-6">
               <div>
@@ -528,7 +1034,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
             </div>
           )}
 
-          {/* TAB 3: QR CODE GENERATOR (Using qrcode dependency) */}
+          {/* TAB 4: QR CODE GENERATOR */}
           {activeTab === 'qrcode' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
@@ -619,7 +1125,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
             </div>
           )}
 
-          {/* TAB 4: SEO & METADATA INSPECTOR */}
+          {/* TAB 5: SEO & METADATA INSPECTOR */}
           {activeTab === 'seo' && (
             <div className="space-y-5 text-xs font-mono-tech">
               <div className="p-4 bg-[#F8F7F3] rounded-lg border border-[#0E1730]/10 space-y-3">
@@ -684,7 +1190,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
 
         {/* Footer */}
         <div className="bg-[#F8F7F3] px-6 py-3 border-t border-[#0E1730]/10 flex items-center justify-between text-xs font-mono-tech text-[#111827]/60">
-          <span>Client-side utility · Zero backend requirements</span>
+          <span>Local authoring tool · Static GitHub Pages deployment</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 bg-[#0E1730] text-white rounded hover:bg-[#002B97] transition-colors cursor-pointer"

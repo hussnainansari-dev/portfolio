@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   getCurrentJourneyEntry,
   getRecentJourneyEntries,
@@ -12,29 +12,47 @@ import {
   Linkedin,
   Github,
   Calendar,
-  Layers,
   ChevronDown,
   ChevronUp,
   Search,
   CheckCircle2,
-  AlertCircle,
   HelpCircle,
-  Clock,
-  ArrowRight,
+  ImageIcon,
+  Eye,
   BookOpen
 } from 'lucide-react';
 
 export const LearningInPublic: React.FC = () => {
-  const currentEntry = getCurrentJourneyEntry();
-  const recentEntries = getRecentJourneyEntries(3);
-  const allEntries = getAllJourneyEntries();
+  const [currentEntry, setCurrentEntry] = useState<LearningEntry>(getCurrentJourneyEntry());
+  const [recentEntries, setRecentEntries] = useState<LearningEntry[]>(getRecentJourneyEntries(3));
+  const [allEntries, setAllEntries] = useState<LearningEntry[]>(getAllJourneyEntries());
 
   const [showFullArchive, setShowFullArchive] = useState(false);
   const [selectedEntryModal, setSelectedEntryModal] = useState<LearningEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTopic, setFilterTopic] = useState<string>('all');
 
-  // Extract unique topics for quick filter tabs
+  const reloadEntries = () => {
+    setCurrentEntry(getCurrentJourneyEntry());
+    setRecentEntries(getRecentJourneyEntries(3));
+    setAllEntries(getAllJourneyEntries());
+  };
+
+  useEffect(() => {
+    reloadEntries();
+
+    const handleUpdate = () => {
+      reloadEntries();
+    };
+
+    window.addEventListener('journey-entries-updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('journey-entries-updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
   const topics = ['all', 'Python', 'SQL', 'Accounting'];
 
   const filteredArchive = allEntries.filter((entry) => {
@@ -95,6 +113,12 @@ export const LearningInPublic: React.FC = () => {
               <span className="text-xs font-mono-tech text-[#E6EDF6]/80">
                 {currentEntry.topic}
               </span>
+              {currentEntry.isLocalPreview && (
+                <span className="text-[10px] font-mono-tech uppercase font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded flex items-center gap-1">
+                  <Eye className="w-3 h-3" />
+                  <span>Device Preview</span>
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2 text-xs font-mono-tech text-white/60">
@@ -110,6 +134,17 @@ export const LearningInPublic: React.FC = () => {
                 {currentEntry.shortTitle}
               </h3>
 
+              {currentEntry.whyIStudiedIt && (
+                <div className="space-y-1">
+                  <span className="font-mono-tech text-xs uppercase tracking-wider text-[#E6EDF6]/70 font-semibold block">
+                    WHY I STUDIED IT:
+                  </span>
+                  <p className="text-xs sm:text-sm text-[#E6EDF6]/85 font-sans leading-relaxed italic">
+                    “{currentEntry.whyIStudiedIt}”
+                  </p>
+                </div>
+              )}
+
               {/* What I Learned */}
               <div className="space-y-1.5">
                 <span className="font-mono-tech text-xs uppercase tracking-wider text-[#2563EB] font-bold flex items-center gap-1.5">
@@ -121,7 +156,7 @@ export const LearningInPublic: React.FC = () => {
                 </p>
               </div>
 
-              {/* What Confused Me / Challenged Me (Required Field) */}
+              {/* What Confused Me / Challenged Me */}
               <div className="space-y-1.5">
                 <span className="font-mono-tech text-xs uppercase tracking-wider text-[#D97706] font-bold flex items-center gap-1.5">
                   <HelpCircle className="w-3.5 h-3.5 text-[#D97706]" />
@@ -132,7 +167,27 @@ export const LearningInPublic: React.FC = () => {
                 </p>
               </div>
 
-              {/* Verified Links (Only display when real destination exists) */}
+              {/* Optional evidence image */}
+              {currentEntry.image && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="font-mono-tech text-xs uppercase tracking-wider text-[#2563EB] font-bold flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-[#2563EB]" />
+                    <span>EVIDENCE / PROOF ARTIFACT</span>
+                  </span>
+                  <div
+                    onClick={() => setSelectedEntryModal(currentEntry)}
+                    className="w-full max-h-56 rounded overflow-hidden bg-black/40 border border-white/10 cursor-pointer group"
+                  >
+                    <img
+                      src={currentEntry.image}
+                      alt={`Day ${currentEntry.dayNumber} proof`}
+                      className="w-full max-h-56 object-cover group-hover:scale-101 transition-transform"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Verified Links */}
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 {currentEntry.githubLink && (
                   <a
@@ -235,9 +290,16 @@ export const LearningInPublic: React.FC = () => {
               >
                 <div>
                   <div className="flex items-center justify-between text-xs font-mono-tech mb-3">
-                    <span className="font-bold text-[#2563EB]">
-                      DAY {String(entry.dayNumber).padStart(2, '0')}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-[#2563EB]">
+                        DAY {String(entry.dayNumber).padStart(2, '0')}
+                      </span>
+                      {entry.isLocalPreview && (
+                        <span className="text-[9px] uppercase font-bold bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded">
+                          Preview
+                        </span>
+                      )}
+                    </div>
                     <span className="text-white/50">{entry.date}</span>
                   </div>
 
@@ -268,7 +330,7 @@ export const LearningInPublic: React.FC = () => {
         </div>
 
         {/* =====================================================================
-            03. FULL ARCHIVE (Expandable, Filterable, Scalable to 100+ Days)
+            03. FULL ARCHIVE (Expandable, Filterable)
            ===================================================================== */}
         {showFullArchive && (
           <div className="mt-12 bg-black/40 rounded-lg border border-white/10 p-6 sm:p-8 animate-fadeIn space-y-6">
@@ -326,9 +388,16 @@ export const LearningInPublic: React.FC = () => {
                       DAY {String(entry.dayNumber).padStart(2, '0')}
                     </span>
                     <div>
-                      <h5 className="font-editorial text-lg font-bold text-white group-hover:text-[#2563EB] transition-colors">
-                        {entry.shortTitle}
-                      </h5>
+                      <div className="flex items-center gap-2">
+                        <h5 className="font-editorial text-lg font-bold text-white group-hover:text-[#2563EB] transition-colors">
+                          {entry.shortTitle}
+                        </h5>
+                        {entry.isLocalPreview && (
+                          <span className="text-[9px] uppercase font-bold bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded">
+                            Preview
+                          </span>
+                        )}
+                      </div>
                       <span className="text-xs font-mono-tech text-[#E6EDF6]/60">
                         {entry.topic} · {entry.proof}
                       </span>
@@ -351,7 +420,7 @@ export const LearningInPublic: React.FC = () => {
          ===================================================================== */}
       {selectedEntryModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-[#0E1730] text-white w-full max-w-2xl rounded-lg border border-white/20 p-6 sm:p-8 space-y-6 shadow-2xl relative my-auto">
+          <div className="bg-[#0E1730] text-white w-full max-w-2xl rounded-lg border border-white/20 p-6 sm:p-8 space-y-6 shadow-2xl relative my-auto max-h-[92vh] overflow-y-auto">
             <button
               onClick={() => setSelectedEntryModal(null)}
               className="absolute top-5 right-5 p-1.5 text-white/70 hover:text-white rounded bg-white/10 cursor-pointer"
@@ -365,6 +434,11 @@ export const LearningInPublic: React.FC = () => {
                 <span>DAY {String(selectedEntryModal.dayNumber).padStart(2, '0')}</span>
                 <span>·</span>
                 <span>{selectedEntryModal.topic}</span>
+                {selectedEntryModal.isLocalPreview && (
+                  <span className="text-[10px] uppercase font-bold bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">
+                    Device Preview
+                  </span>
+                )}
               </div>
               <h3 className="font-editorial text-2xl sm:text-3xl font-bold">
                 {selectedEntryModal.shortTitle}
@@ -375,6 +449,17 @@ export const LearningInPublic: React.FC = () => {
             </div>
 
             <div className="space-y-4 text-sm text-[#E6EDF6]/90 leading-relaxed font-sans">
+              {selectedEntryModal.whyIStudiedIt && (
+                <div>
+                  <span className="font-mono-tech text-xs uppercase text-[#E6EDF6]/70 font-semibold block mb-1">
+                    WHY I STUDIED IT
+                  </span>
+                  <p className="text-xs sm:text-sm italic text-[#E6EDF6]/85 bg-white/5 p-3 rounded">
+                    “{selectedEntryModal.whyIStudiedIt}”
+                  </p>
+                </div>
+              )}
+
               <div>
                 <span className="font-mono-tech text-xs uppercase text-[#2563EB] font-bold block mb-1">
                   WHAT I LEARNED
@@ -400,12 +485,28 @@ export const LearningInPublic: React.FC = () => {
                 <p className="text-xs sm:text-sm">{selectedEntryModal.whatChanged}</p>
               </div>
 
-              <div>
-                <span className="font-mono-tech text-xs uppercase text-[#2563EB] font-bold block mb-1">
-                  PRACTICE / PROOF / OUTPUT
-                </span>
-                <p className="text-xs text-white/80 font-mono-tech">{selectedEntryModal.proof}</p>
-              </div>
+              {selectedEntryModal.image ? (
+                <div>
+                  <span className="font-mono-tech text-xs uppercase text-[#2563EB] font-bold block mb-1.5 flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>EVIDENCE / PROOF ARTIFACT</span>
+                  </span>
+                  <div className="rounded overflow-hidden border border-white/15 max-h-80 bg-black/50">
+                    <img
+                      src={selectedEntryModal.image}
+                      alt="Proof artifact"
+                      className="w-full max-h-80 object-contain"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <span className="font-mono-tech text-xs uppercase text-[#2563EB] font-bold block mb-1">
+                    PRACTICE / PROOF / OUTPUT
+                  </span>
+                  <p className="text-xs text-white/80 font-mono-tech">{selectedEntryModal.proof}</p>
+                </div>
+              )}
             </div>
 
             {/* Links in Modal */}

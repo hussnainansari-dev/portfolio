@@ -4,10 +4,9 @@ import { SITE_CONFIG } from '../data/social';
 
 interface FooterProps {
   onOpenResume: () => void;
-  onOpenAdmin: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenResume, onOpenAdmin }) => {
+export const Footer: React.FC<FooterProps> = ({ onOpenResume }) => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -149,23 +148,10 @@ export const Footer: React.FC<FooterProps> = ({ onOpenResume, onOpenAdmin }) => 
           </div>
         </div>
 
-        {/* Bottom Bar with subtle Admin link */}
+        {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono-tech text-white/50">
           <div className="flex items-center gap-3">
             <span>© 2026 Hussnain Ansari. Documented authentically.</span>
-            <span aria-hidden="true" className="text-white/20">·</span>
-            <a
-              href="#/admin"
-              onClick={(e) => {
-                e.preventDefault();
-                onOpenAdmin();
-              }}
-              className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-1"
-              title="Admin Studio (Client-side asset helper)"
-            >
-              <Settings className="w-3 h-3" />
-              <span>Admin</span>
-            </a>
           </div>
 
           <button

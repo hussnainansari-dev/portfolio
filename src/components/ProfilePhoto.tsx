@@ -39,8 +39,11 @@ export const ProfilePhoto: React.FC<ProfilePhotoProps> = ({
       // LocalStorage access may fail in private mode
     }
 
+    // Default static canonical portrait asset with base URL resolution
+    const baseUrl = import.meta.env.BASE_URL || '/';
+    const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
     const cacheBuster = typeof __BUILD_TIMESTAMP__ !== 'undefined' ? __BUILD_TIMESTAMP__ : '1';
-    setPhotoSrc(`./images/profile.jpg?v=${cacheBuster}`);
+    setPhotoSrc(`${cleanBase}images/profile.jpg?v=${cacheBuster}`);
     setIsPreview(false);
     setHasError(false);
   };

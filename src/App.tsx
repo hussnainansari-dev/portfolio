@@ -25,7 +25,8 @@ export default function App() {
   // Listen to hash changes for hidden #/admin route
   useEffect(() => {
     const checkHash = () => {
-      if (window.location.hash === '#/admin') {
+      const hash = window.location.hash.toLowerCase();
+      if (hash === '#/admin' || hash === '#admin') {
         setAdminStudioOpen(true);
       }
     };
@@ -74,7 +75,8 @@ export default function App() {
 
   const handleCloseAdminStudio = () => {
     setAdminStudioOpen(false);
-    if (window.location.hash === '#/admin') {
+    const hash = window.location.hash.toLowerCase();
+    if (hash === '#/admin' || hash === '#admin') {
       history.replaceState(null, '', window.location.pathname + window.location.search);
     }
   };
@@ -131,10 +133,9 @@ export default function App() {
         <LiveShareSection />
       </main>
 
-      {/* Editorial Footer with Admin link */}
+      {/* Editorial Footer (public controls only) */}
       <Footer
         onOpenResume={() => setResumeOpen(true)}
-        onOpenAdmin={() => setAdminStudioOpen(true)}
       />
 
       {/* Interactive Modals */}

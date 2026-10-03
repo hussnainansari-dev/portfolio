@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>404: Archive Entry Not Found — Hussnain Ansari</title>
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/portfolio/favicon.svg" />
     <meta name="theme-color" content="#0E1730" />
     <meta name="robots" content="noindex, follow" />
     
@@ -197,7 +197,7 @@
         The portfolio page or resource you requested could not be located in this archive. It may have moved or been updated.
       </p>
 
-      <a href="./" class="primary-btn">
+      <a id="home-btn" href="/portfolio/" class="primary-btn">
         <span>Return to Portfolio</span>
         <span>→</span>
       </a>
@@ -205,12 +205,12 @@
       <div class="directory-section">
         <span class="directory-title">Direct Index Jump</span>
         <div class="links-grid">
-          <a href="./#about"><span>01 / About</span><span>↗</span></a>
-          <a href="./#journey"><span>02 / Journey</span><span>↗</span></a>
-          <a href="./#projects"><span>03 / Projects</span><span>↗</span></a>
-          <a href="./#learning"><span>04 / Learning</span><span>↗</span></a>
-          <a href="./#archive"><span>05 / Archive</span><span>↗</span></a>
-          <a href="./#contact"><span>08 / Contact</span><span>↗</span></a>
+          <a class="nav-jump" href="/portfolio/#about"><span>01 / About</span><span>↗</span></a>
+          <a class="nav-jump" href="/portfolio/#journey"><span>02 / Journey</span><span>↗</span></a>
+          <a class="nav-jump" href="/portfolio/#projects"><span>03 / Projects</span><span>↗</span></a>
+          <a class="nav-jump" href="/portfolio/#learning"><span>04 / Learning</span><span>↗</span></a>
+          <a class="nav-jump" href="/portfolio/#archive"><span>05 / Archive</span><span>↗</span></a>
+          <a class="nav-jump" href="/portfolio/#contact"><span>08 / Contact</span><span>↗</span></a>
         </div>
       </div>
     </div>
@@ -218,5 +218,16 @@
     <div class="footer-note">
       Hussnain Ansari · Accounting &amp; Finance × Business × Data
     </div>
+
+    <script>
+      // Automatically detect if running locally or under GitHub Pages repo subpath
+      const isGitHubPages = window.location.hostname.includes('github.io');
+      const basePath = isGitHubPages ? '/portfolio/' : './';
+      document.getElementById('home-btn').setAttribute('href', basePath);
+      document.querySelectorAll('.nav-jump').forEach(link => {
+        const hash = link.getAttribute('href').split('#')[1] || '';
+        link.setAttribute('href', basePath + '#' + hash);
+      });
+    </script>
   </body>
 </html>
