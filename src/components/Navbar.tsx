@@ -6,9 +6,10 @@ import { SITE_CONFIG } from '../data/social';
 interface NavbarProps {
   onOpenResume: () => void;
   activeSection: string;
+  onOpenPhotoStudio?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenResume, activeSection }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onOpenResume, activeSection, onOpenPhotoStudio }) => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -45,11 +46,20 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenResume, activeSection }) =
             href="#"
             className="text-base sm:text-lg font-bold tracking-tight text-[#0E1730] hover:text-[#002B97] transition-colors flex items-center gap-2.5"
           >
-            <ProfilePhoto
-              size="sm"
-              className="border border-[#002B97]/30"
-              alt="Hussnain Ansari"
-            />
+            <div
+              onDoubleClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onOpenPhotoStudio?.();
+              }}
+              title="Hussnain Ansari"
+            >
+              <ProfilePhoto
+                size="sm"
+                className="border border-[#002B97]/30 cursor-pointer"
+                alt="Hussnain Ansari"
+              />
+            </div>
             <div className="flex items-baseline gap-1.5">
               <span className="font-editorial text-xl sm:text-2xl font-bold tracking-tight">Hussnain Ansari</span>
               <span className="hidden sm:inline font-mono-tech text-[11px] text-[#002B97] font-medium tracking-wider">

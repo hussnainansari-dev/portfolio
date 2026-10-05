@@ -23,8 +23,8 @@ export const SITE_CONFIG: SocialLinks = {
   githubAlt: 'https://github.com/hussnainali45',
   linkedin: 'https://www.linkedin.com/in/hussnain-ali45/',
   instagram: 'https://www.instagram.com/hussnain.ali45/',
-  email: 'hussnainansa7@gmail.com',
-  secondaryEmail: 'hussnainansari.dev@gmail.com',
+  email: 'hussnainansari.dev@gmail.com',
+  secondaryEmail: 'hussnainansa7@gmail.com',
   phone: '0318-9716834',
   location: 'Lahore, Pakistan',
   resumePdfPath: `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}resume/Hussnain_Ansari_Resume.pdf`

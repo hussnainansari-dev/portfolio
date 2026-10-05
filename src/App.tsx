@@ -20,13 +20,21 @@ export default function App() {
   const [resumeOpen, setResumeOpen] = useState(false);
   const [finovahStudyOpen, setFinovahStudyOpen] = useState(false);
   const [adminStudioOpen, setAdminStudioOpen] = useState(false);
+  const [adminStudioTab, setAdminStudioTab] = useState<'photo' | 'journey' | 'resume' | 'qrcode' | 'seo'>('photo');
   const [activeSection, setActiveSection] = useState('about');
 
-  // Listen to hash changes for hidden #/admin route
+  // Listen to hash changes for hidden #/admin and #/upload routes
   useEffect(() => {
     const checkHash = () => {
       const hash = window.location.hash.toLowerCase();
       if (hash === '#/admin' || hash === '#admin') {
+        setAdminStudioTab('photo');
+        setAdminStudioOpen(true);
+      } else if (hash === '#/upload' || hash === '#upload' || hash === '#/photo' || hash === '#photo') {
+        setAdminStudioTab('photo');
+        setAdminStudioOpen(true);
+      } else if (hash === '#/journey' || hash === '#journey-admin') {
+        setAdminStudioTab('journey');
         setAdminStudioOpen(true);
       }
     };
@@ -34,6 +42,20 @@ export default function App() {
     checkHash();
     window.addEventListener('hashchange', checkHash);
     return () => window.removeEventListener('hashchange', checkHash);
+  }, []);
+
+  // Keyboard shortcut for owner: Alt + U (Upload Profile Photo)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 'u' || e.key === 'U')) {
+        e.preventDefault();
+        setAdminStudioTab('photo');
+        setAdminStudioOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // Track active section on scroll
@@ -73,10 +95,22 @@ export default function App() {
     }
   };
 
+  const handleOpenPhotoStudio = () => {
+    setAdminStudioTab('photo');
+    setAdminStudioOpen(true);
+  };
+
   const handleCloseAdminStudio = () => {
     setAdminStudioOpen(false);
     const hash = window.location.hash.toLowerCase();
-    if (hash === '#/admin' || hash === '#admin') {
+    if (
+      hash === '#/admin' ||
+      hash === '#admin' ||
+      hash === '#/upload' ||
+      hash === '#upload' ||
+      hash === '#/photo' ||
+      hash === '#photo'
+    ) {
       history.replaceState(null, '', window.location.pathname + window.location.search);
     }
   };
@@ -90,6 +124,7 @@ export default function App() {
       <Navbar
         onOpenResume={() => setResumeOpen(true)}
         activeSection={activeSection}
+        onOpenPhotoStudio={handleOpenPhotoStudio}
       />
 
       {/* Main Content Area */}
@@ -104,6 +139,7 @@ export default function App() {
         {/* 01 / About: Grounding & Experience */}
         <About
           onOpenResumeModal={() => setResumeOpen(true)}
+          onOpenPhotoStudio={handleOpenPhotoStudio}
         />
 
         {/* 02 / Journey: Research progression timeline */}
@@ -149,9 +185,11 @@ export default function App() {
         onClose={() => setFinovahStudyOpen(false)}
       />
 
+      {/* Owner-Only Studio Modal */}
       <AdminStudioModal
         isOpen={adminStudioOpen}
         onClose={handleCloseAdminStudio}
+        initialTab={adminStudioTab}
       />
     </div>
   );

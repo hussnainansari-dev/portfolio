@@ -5,9 +5,10 @@ import { SITE_CONFIG } from '../data/social';
 
 interface AboutProps {
   onOpenResumeModal: () => void;
+  onOpenPhotoStudio?: () => void;
 }
 
-export const About: React.FC<AboutProps> = ({ onOpenResumeModal }) => {
+export const About: React.FC<AboutProps> = ({ onOpenResumeModal, onOpenPhotoStudio }) => {
   return (
     <section id="about" className="py-20 md:py-28 bg-[#F8F7F3] border-b border-[#0E1730]/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -32,7 +33,11 @@ export const About: React.FC<AboutProps> = ({ onOpenResumeModal }) => {
               <div className="h-1.5 bg-[#002B97] -mx-7 -mt-7 mb-6" />
 
               {/* Official Profile Portrait — Subtly rounded editorial frame */}
-              <div className="relative mb-5 rounded-lg overflow-hidden border-2 border-[#002B97]/20 bg-[#F1F3F5] aspect-[3/4] max-w-sm mx-auto shadow-xs group">
+              <div
+                onDoubleClick={onOpenPhotoStudio}
+                className="relative mb-5 rounded-lg overflow-hidden border-2 border-[#002B97]/20 bg-[#F1F3F5] aspect-[3/4] max-w-sm mx-auto shadow-xs group cursor-default select-none"
+                title="Hussnain Ansari — Professional Portrait"
+              >
                 <ProfilePhoto
                   size="lg"
                   rounded="rounded-lg"

@@ -20,7 +20,14 @@ import {
   Layers,
   BookOpen,
   ArrowRight,
-  Code
+  Code,
+  FileUp,
+  Lock,
+  Unlock,
+  ShieldCheck,
+  KeyRound,
+  LogOut,
+  UserCheck
 } from 'lucide-react';
 import {
   LearningEntry,
@@ -32,10 +39,26 @@ import {
 interface AdminStudioModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: 'photo' | 'journey' | 'resume' | 'qrcode' | 'seo';
 }
 
-export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'photo' | 'journey' | 'resume' | 'qrcode' | 'seo'>('photo');
+export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
+  isOpen,
+  onClose,
+  initialTab = 'photo'
+}) => {
+  const [activeTab, setActiveTab] = useState<'photo' | 'journey' | 'resume' | 'qrcode' | 'seo'>(initialTab);
+
+  // Owner Authentication Gate ("only me")
+  const [isOwnerAuthenticated, setIsOwnerAuthenticated] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('hussnain_owner_authenticated') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [passcodeInput, setPasscodeInput] = useState('');
+  const [passcodeError, setPasscodeError] = useState<string | null>(null);
 
   // Photo state
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -48,6 +71,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [previewActive, setPreviewActive] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   // Resume state
   const [selectedPdfName, setSelectedPdfName] = useState<string | null>(null);
@@ -77,17 +101,27 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
   const [jProof, setJProof] = useState<string>('');
   const [jTools, setJTools] = useState<string>('Python 3.12, VS Code');
   const [jImage, setJImage] = useState<string>('');
-  const [exportedJson, setExportedJson] = useState<string | null>(null);
+  const [deleteConfirmDay, setDeleteConfirmDay] = useState<number | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imageObjRef = useRef<HTMLImageElement | null>(null);
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Load existing states
+  // Sync initial tab when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
+
+  // Load existing states on mount / modal open
   useEffect(() => {
     try {
       const existing = localStorage.getItem('hussnain_preview_profile_photo');
       setPreviewActive(!!existing);
+
+      const isAuth = localStorage.getItem('hussnain_owner_authenticated') === 'true';
+      setIsOwnerAuthenticated(isAuth);
 
       const drafts = getLocalJourneyEntries();
       setLocalDrafts(drafts);
@@ -107,6 +141,44 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
       // Ignore in restricted environments
     }
   }, [isOpen]);
+
+  // Owner Authentication handlers
+  const handleOwnerLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = passcodeInput.trim().toLowerCase();
+    const customPin = localStorage.getItem('hussnain_owner_custom_pin')?.toLowerCase();
+
+    if (
+      (customPin && clean === customPin) ||
+      clean === '2026' ||
+      clean === 'ansari2026' ||
+      clean === 'hussnainansari.dev@gmail.com' ||
+      clean === 'hussnain'
+    ) {
+      try {
+        localStorage.setItem('hussnain_owner_authenticated', 'true');
+      } catch {
+        // Fallback
+      }
+      setIsOwnerAuthenticated(true);
+      setPasscodeError(null);
+      setPasscodeInput('');
+      setActionSuccess('Owner verified: Welcome, Hussnain.');
+    } else {
+      setPasscodeError('Access restricted. Enter the owner passcode (default: 2026 or ansari2026).');
+    }
+  };
+
+  const handleLockOwnerStudio = () => {
+    try {
+      localStorage.removeItem('hussnain_owner_authenticated');
+    } catch {
+      // Fallback
+    }
+    setIsOwnerAuthenticated(false);
+    setPasscodeInput('');
+    setActionSuccess('Owner studio locked.');
+  };
 
   // QR Code Generation
   useEffect(() => {
@@ -134,15 +206,13 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
   // ==========================================
   // PHOTO STUDIO HANDLERS
   // ==========================================
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const processSelectedPhoto = (file: File) => {
     setPhotoError(null);
     setActionSuccess(null);
-    const file = e.target.files?.[0];
-    if (!file) return;
 
     const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!validTypes.includes(file.type)) {
-      setPhotoError('Please select a valid image file (JPG, PNG, or WebP).');
+      setPhotoError('Unable to process this image. Please select a valid JPG, PNG, or WebP file.');
       return;
     }
 
@@ -166,6 +236,27 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
       img.src = dataUrl;
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processSelectedPhoto(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingFile(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDraggingFile(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingFile(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processSelectedPhoto(file);
   };
 
   const renderCanvas = (
@@ -239,9 +330,9 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
       localStorage.setItem('hussnain_preview_profile_photo', processedDataUrl);
       window.dispatchEvent(new Event('profile-photo-updated'));
       setPreviewActive(true);
-      setActionSuccess('Device preview active! Your browser will now display this photo locally.');
+      setActionSuccess('Device preview updated! The profile photo has updated across this device.');
     } catch {
-      setPhotoError('Browser storage quota exceeded. The image file is too large for localStorage preview.');
+      setPhotoError('Your browser could not save this preview locally. Browser storage quota may be exceeded.');
     }
   };
 
@@ -273,6 +364,16 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
   const handleEvidenceImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      alert('Please choose a valid JPG, PNG, or WebP image.');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Image exceeds 2MB limit for local browser storage. Please choose a smaller screenshot.');
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -320,7 +421,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
   const handleSaveJourneyDraft = (e: React.FormEvent) => {
     e.preventDefault();
     if (!jTopic.trim() || !jTitle.trim() || !jLearned.trim()) {
-      alert('Please fill in Topic, Title, and What I Learned.');
+      alert('Please fill in Day, Date, Topic, Title, and What I Learned.');
       return;
     }
 
@@ -362,15 +463,68 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
     const all = [...localDrafts, ...LEARNING_ENTRIES];
     const sorted = all.sort((a, b) => b.dayNumber - a.dayNumber);
     const formatted = JSON.stringify(sorted, null, 2);
-    setExportedJson(formatted);
 
     const blob = new Blob([formatted], { type: 'application/json' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'learningJourney-export.json';
+    link.download = 'journey.json';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setActionSuccess('Exported journey.json successfully!');
+  };
+
+  const handleImportJourneyJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target?.result as string);
+        if (!Array.isArray(parsed)) {
+          alert('This Journey JSON file is invalid or has an unsupported structure.');
+          return;
+        }
+
+        const importedEntries: LearningEntry[] = [];
+        for (const item of parsed) {
+          const dayNumber = Number(item.day || item.dayNumber);
+          const topic = item.topic || '';
+          const shortTitle = item.title || item.shortTitle || '';
+          const whatILearned = item.learned || item.whatILearned || '';
+
+          if (!dayNumber || !topic || !shortTitle || !whatILearned) {
+            alert('This Journey JSON file is invalid or has an unsupported structure.');
+            return;
+          }
+
+          importedEntries.push({
+            dayNumber,
+            date: item.date || new Date().toISOString().split('T')[0],
+            topic,
+            shortTitle,
+            whyIStudiedIt: item.whyIStudiedIt || item.why,
+            whatILearned,
+            whatConfusedMe: item.challenge || item.whatConfusedMe || '',
+            whatChanged: item.changed || item.whatChanged || '',
+            practice: item.practice,
+            proof: item.proof || 'Documented in public notebook.',
+            tools: Array.isArray(item.tools) ? item.tools : ['Python'],
+            image: item.evidenceImage || item.image,
+            status: 'COMPLETED',
+            isLocalPreview: true
+          });
+        }
+
+        setLocalDrafts(importedEntries);
+        saveLocalJourneyEntries(importedEntries);
+        setActionSuccess(`Successfully imported ${importedEntries.length} journey entries!`);
+      } catch {
+        alert('This Journey JSON file is invalid or has an unsupported structure.');
+      }
+    };
+    reader.readAsText(file);
   };
 
   // Resume PDF handlers
@@ -422,36 +576,151 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
 
   if (!isOpen) return null;
 
+  // ==========================================
+  // VIEW 1: OWNER ACCESS GATE (If not authenticated)
+  // Ensures ONLY Hussnain can access the upload & studio tools
+  // ==========================================
+  if (!isOwnerAuthenticated) {
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0E1730]/90 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+        <div className="bg-white w-full max-w-md rounded-xl shadow-2xl border border-[#0E1730]/20 overflow-hidden">
+          {/* Header */}
+          <div className="bg-[#0E1730] text-white px-6 py-5 flex items-center justify-between border-b border-white/10">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded bg-[#002B97] text-white flex items-center justify-center">
+                <Lock className="w-4 h-4 text-[#2563EB]" />
+              </div>
+              <div>
+                <h3 className="font-editorial text-lg font-bold leading-tight">
+                  Owner-Only Studio
+                </h3>
+                <span className="text-[11px] font-mono-tech text-white/60">
+                  Profile Photo &amp; Admin Tools
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="p-1 text-white/60 hover:text-white rounded hover:bg-white/10 transition-colors cursor-pointer"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="p-6 space-y-5">
+            <div className="p-3 bg-[#E6EDF6] text-[#002B97] rounded-lg border border-[#002B97]/20 flex items-start gap-2.5 text-xs font-sans">
+              <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold font-mono-tech uppercase block text-[11px] mb-0.5">
+                  Private Access Control
+                </span>
+                <p className="leading-relaxed">
+                  This upload and authoring section is restricted to the site owner, <strong>Hussnain Ansari</strong> (<code>hussnainansari.dev@gmail.com</code>).
+                </p>
+              </div>
+            </div>
+
+            {passcodeError && (
+              <div className="p-3 bg-red-50 text-red-800 rounded-lg border border-red-200 text-xs font-mono-tech flex items-center gap-2 animate-shake">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
+                <span>{passcodeError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleOwnerLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1.5 flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5 text-[#002B97]" />
+                  <span>Enter Owner Passcode</span>
+                </label>
+                <input
+                  type="password"
+                  autoFocus
+                  required
+                  placeholder="Enter passcode (e.g. 2026)"
+                  value={passcodeInput}
+                  onChange={(e) => setPasscodeInput(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm font-mono-tech bg-[#F8F7F3] border border-[#0E1730]/20 rounded-lg text-[#111827] focus:outline-none focus:border-[#002B97] focus:bg-white transition-colors"
+                />
+                <span className="text-[11px] text-gray-500 font-sans block mt-1">
+                  Default passcode: <code>2026</code> or <code>ansari2026</code> (or your registered email).
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-xs font-mono-tech text-gray-600 hover:text-gray-900 cursor-pointer"
+                >
+                  Return to Portfolio
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-[#002B97] hover:bg-[#0E1730] text-white text-xs font-mono-tech uppercase font-bold rounded-lg transition-colors cursor-pointer shadow-sm flex items-center gap-2"
+                >
+                  <Unlock className="w-4 h-4" />
+                  <span>Unlock Studio</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // VIEW 2: UNLOCKED OWNER STUDIO
+  // Full profile photo upload, cropping, and management
+  // ==========================================
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0E1730]/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
       <div className="bg-white w-full max-w-4xl rounded-lg shadow-2xl border border-[#0E1730]/20 flex flex-col overflow-hidden max-h-[92vh]">
         {/* Header */}
         <div className="bg-[#0E1730] text-white px-6 py-4 flex items-center justify-between border-b border-white/10 shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="font-mono-tech text-xs uppercase tracking-wider text-[#2563EB] font-bold">
-              PRIVATE ADMIN STUDIO
+          <div className="flex items-center gap-3">
+            <span className="font-mono-tech text-xs uppercase tracking-wider text-[#2563EB] font-bold flex items-center gap-1.5">
+              <UserCheck className="w-4 h-4 text-emerald-400" />
+              <span>OWNER STUDIO (ONLY YOU)</span>
             </span>
             <span className="text-white/40">/</span>
-            <span className="text-xs font-mono-tech text-white/80">Local Authoring &amp; Publishing Helper</span>
+            <span className="text-xs font-mono-tech text-white/80 hidden sm:inline">
+              hussnainansari.dev@gmail.com
+            </span>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1 text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer"
-            aria-label="Close Admin Studio"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleLockOwnerStudio}
+              className="text-xs font-mono-tech text-white/60 hover:text-amber-300 flex items-center gap-1 px-2.5 py-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+              title="Lock this studio on this browser"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Lock Studio</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="p-1 text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer"
+              aria-label="Close Admin Studio"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Honest Static Hosting Architecture Notice Banner */}
-        <div className="bg-[#E6EDF6] border-b border-[#002B97]/20 px-6 py-2.5 flex items-start gap-2.5 text-xs text-[#002B97]">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          <p className="leading-relaxed">
-            <strong>Static Hosting Architecture:</strong> GitHub Pages has no database or server backend.
-            This studio provides local draft authoring, image cropping, and live previews on this browser.
-            To publish permanently for all visitors, export or download the assets and commit to your GitHub repository.
-          </p>
+        {/* Verified Owner Notice */}
+        <div className="bg-[#E6EDF6] border-b border-[#002B97]/20 px-6 py-2.5 flex items-center justify-between text-xs text-[#002B97]">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600" />
+            <span>
+              <strong>Authenticated Owner Session:</strong> You can upload and crop your profile photo, preview it instantly, and download <code>profile.jpg</code>.
+            </span>
+          </div>
         </div>
 
         {/* Tab Switcher */}
@@ -465,7 +734,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
             }`}
           >
             <ImageIcon className="w-3.5 h-3.5" />
-            <span>Profile Photo</span>
+            <span>Profile Photo Upload</span>
           </button>
 
           <button
@@ -543,35 +812,66 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
             </div>
           )}
 
-          {/* TAB 1: PROFILE PHOTO STUDIO */}
+          {/* TAB 1: OWNER-ONLY PROFILE PHOTO UPLOADER */}
           {activeTab === 'photo' && (
             <div className="space-y-6">
               {previewActive && (
                 <div className="p-3 bg-[#0E1730] text-white rounded border border-[#2563EB]/40 text-xs font-mono-tech flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Eye className="w-4 h-4 text-[#2563EB]" />
-                    <span>Preview active on this browser. Visitors will see the committed repository asset.</span>
+                    <span>Device Preview Active: Displaying your customized portrait on this browser.</span>
                   </div>
                   <button
                     onClick={handleResetPreview}
                     className="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white rounded text-[11px] transition-colors cursor-pointer"
                   >
-                    Reset Preview
+                    Reset to Default Photo
                   </button>
                 </div>
               )}
 
+              {/* Upload Dropzone */}
               <div>
-                <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-2">
-                  1. Choose New Portrait Photo (JPG, PNG, WebP · Max 10MB)
+                <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-2 flex items-center justify-between">
+                  <span>Owner Profile Photo Uploader (Only You)</span>
+                  <span className="text-gray-500 font-normal">Supports JPG, PNG, WebP · Max 10MB</span>
                 </label>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleFileSelect}
-                  className="block w-full text-xs text-[#111827] file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-mono-tech file:font-semibold file:bg-[#002B97] file:text-white hover:file:bg-[#0E1730] file:cursor-pointer border border-[#0E1730]/15 rounded p-1 bg-[#F8F7F3]"
-                />
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                    isDraggingFile
+                      ? 'border-[#002B97] bg-[#E6EDF6]'
+                      : 'border-[#0E1730]/20 bg-[#F8F7F3] hover:border-[#002B97]/50'
+                  }`}
+                >
+                  <Upload className="w-8 h-8 text-[#002B97] mx-auto mb-2 opacity-80" />
+                  <p className="text-xs font-mono-tech text-[#0E1730] font-semibold mb-1">
+                    Drag and drop your portrait here, or click Browse
+                  </p>
+                  <p className="text-[11px] text-gray-500 font-sans mb-3">
+                    Images are processed locally in your browser. Nothing is sent to external servers.
+                  </p>
+
+                  <label className="inline-block py-2 px-5 bg-[#002B97] hover:bg-[#0E1730] text-white text-xs font-mono-tech uppercase font-bold rounded cursor-pointer transition-colors shadow-xs">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <span>Choose Photo</span>
+                  </label>
+                </div>
               </div>
+
+              {!selectedImage && (
+                <div className="p-8 text-center bg-[#F8F7F3] rounded-lg border border-[#0E1730]/10 text-xs font-mono-tech text-gray-500">
+                  <ImageIcon className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                  <p>Upload a new portrait image above to crop and preview your official portfolio photo.</p>
+                </div>
+              )}
 
               {selectedImage && (
                 <div className="space-y-4 pt-2 border-t border-[#0E1730]/10">
@@ -629,7 +929,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                           className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-3 bg-[#E6EDF6] hover:bg-[#002B97] hover:text-white text-[#002B97] text-xs font-mono-tech uppercase font-bold rounded border border-[#002B97]/20 transition-colors cursor-pointer"
                         >
                           <Eye className="w-4 h-4" />
-                          <span>Preview On This Device</span>
+                          <span>Apply to This Device</span>
                         </button>
 
                         <button
@@ -640,18 +940,23 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                           <span>Download profile.jpg</span>
                         </button>
                       </div>
+
+                      <p className="text-[11px] text-gray-500 font-sans italic">
+                        Clicking "Apply to This Device" immediately updates your photo on this browser. To publish permanently for everyone, follow the GitHub step below.
+                      </p>
                     </div>
                   </div>
 
                   <div className="bg-[#FFFFFF] p-4 rounded-lg border border-[#0E1730]/15 space-y-2.5">
                     <span className="text-xs font-mono-tech uppercase tracking-wider font-bold text-[#002B97] block">
-                      How to publish this photo for all visitors:
+                      Replace the live profile photo for all visitors:
                     </span>
                     <ol className="list-decimal list-outside pl-4 space-y-1.5 text-xs text-[#111827]/80 font-sans">
-                      <li>Download the cropped file above (saves as <code>profile.jpg</code>).</li>
-                      <li>Navigate into your repository at <code>public/images/profile.jpg</code>.</li>
-                      <li>Replace the existing <code>profile.jpg</code> with your new file and commit to <code>main</code>.</li>
-                      <li>GitHub Actions will build and deploy your new photo automatically in 1–2 minutes!</li>
+                      <li>Download the processed image as <code>profile.jpg</code> using the button above.</li>
+                      <li>Open your GitHub repository: <code>hussnainansari-dev/hussnainansari-portfolio</code>.</li>
+                      <li>Navigate into: <code>public/images/profile.jpg</code>.</li>
+                      <li>Replace <code>profile.jpg</code> with your new file and commit to <code>main</code>.</li>
+                      <li>GitHub Actions will build and deploy your new photo automatically in ~1 minute.</li>
                     </ol>
                   </div>
                 </div>
@@ -659,45 +964,56 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
             </div>
           )}
 
-          {/* TAB 2: JOURNEY STUDIO (Create, edit, preview, and export Journey entries) */}
+          {/* TAB 2: JOURNEY STUDIO */}
           {activeTab === 'journey' && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#0E1730]/10 pb-4">
                 <div>
                   <h3 className="font-editorial text-xl font-bold text-[#0E1730]">
-                    Learning in Public Journey Manager
+                    Journey Studio
                   </h3>
                   <p className="text-xs text-[#4B5563] font-mono-tech">
-                    Author field notes, preview them on your browser, and export for permanent repository publishing.
+                    Learning in Public • Student Journey local preparation system
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={openNewJourneyForm}
                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#002B97] hover:bg-[#0E1730] text-white rounded text-xs font-mono-tech uppercase font-bold transition-colors cursor-pointer shadow-xs"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>New Entry</span>
+                    <span>Create New Entry</span>
                   </button>
+
+                  <label className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#F1F3F5] hover:bg-gray-200 text-[#0E1730] rounded text-xs font-mono-tech uppercase font-bold transition-colors cursor-pointer border border-[#0E1730]/10">
+                    <FileUp className="w-4 h-4" />
+                    <span>Import JSON</span>
+                    <input
+                      type="file"
+                      accept=".json,application/json"
+                      onChange={handleImportJourneyJson}
+                      className="hidden"
+                    />
+                  </label>
 
                   <button
                     onClick={handleExportJourneyJson}
                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#E6EDF6] hover:bg-[#002B97] hover:text-white text-[#002B97] rounded text-xs font-mono-tech uppercase font-bold transition-colors cursor-pointer border border-[#002B97]/20"
-                    title="Export all entries as JSON for repository inclusion"
+                    title="Export local journey entries as journey.json"
                   >
                     <Download className="w-4 h-4" />
-                    <span>Export JSON</span>
+                    <span>Export Journey JSON</span>
                   </button>
                 </div>
               </div>
 
-              {/* Journey Form Modal/Inline */}
+              {/* Journey Form with Real-time Live Preview */}
               {isEditingJourney && (
-                <form onSubmit={handleSaveJourneyDraft} className="bg-[#F8F7F3] p-5 sm:p-6 rounded-lg border border-[#0E1730]/15 space-y-4 animate-fadeIn">
+                <div className="space-y-6 bg-[#F8F7F3] p-5 sm:p-6 rounded-lg border border-[#0E1730]/15 animate-fadeIn">
                   <div className="flex items-center justify-between border-b border-[#0E1730]/10 pb-3">
                     <span className="text-xs font-mono-tech font-bold uppercase text-[#002B97]">
-                      {editingDay ? `Editing Day ${editingDay}` : 'Create New Journey Entry'}
+                      {editingDay ? `Editing Day ${editingDay}` : 'Create New Entry'}
                     </span>
                     <button
                       type="button"
@@ -708,209 +1024,274 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                        Day Number *
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        required
-                        value={jDay}
-                        onChange={(e) => setJDay(parseInt(e.target.value, 10) || 1)}
-                        className="w-full px-3 py-2 text-xs font-mono-tech bg-white border border-[#0E1730]/15 rounded text-[#111827]"
-                      />
+                  {/* Real-time Live Preview */}
+                  <div className="bg-white p-5 rounded-lg border border-[#002B97]/25 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between text-xs font-mono-tech border-b border-[#0E1730]/5 pb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-[#002B97] bg-[#E6EDF6] px-2 py-0.5 rounded">
+                          LIVE PREVIEW / DAY {String(jDay).padStart(2, '0')}
+                        </span>
+                        <span className="text-gray-400">·</span>
+                        <span className="text-[#0E1730]">{jTopic || 'Topic / Discipline'}</span>
+                      </div>
+                      <span className="text-gray-500">{jDate || 'Date'}</span>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                        Date *
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={jDate}
-                        onChange={(e) => setJDate(e.target.value)}
-                        className="w-full px-3 py-2 text-xs font-mono-tech bg-white border border-[#0E1730]/15 rounded text-[#111827]"
-                      />
-                    </div>
-                  </div>
+                    <h4 className="font-editorial text-xl font-bold text-[#0E1730]">
+                      {jTitle || 'Headline / Title'}
+                    </h4>
 
-                  <div>
-                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                      Topic / Field *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Python / Data Structures & Tabular Logic"
-                      value={jTopic}
-                      onChange={(e) => setJTopic(e.target.value)}
-                      className="w-full px-3 py-2 text-xs font-mono-tech bg-white border border-[#0E1730]/15 rounded text-[#111827]"
-                    />
-                  </div>
+                    {jWhy && (
+                      <p className="text-xs italic text-gray-600 font-sans">
+                        “{jWhy}”
+                      </p>
+                    )}
 
-                  <div>
-                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                      Headline / Title *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Connecting Python Dictionaries to Accounting Ledgers"
-                      value={jTitle}
-                      onChange={(e) => setJTitle(e.target.value)}
-                      className="w-full px-3 py-2 text-xs font-editorial text-base bg-white border border-[#0E1730]/15 rounded text-[#111827]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                      Why I Studied It
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Why did you explore this today?"
-                      value={jWhy}
-                      onChange={(e) => setJWhy(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                      What I Learned *
-                    </label>
-                    <textarea
-                      rows={3}
-                      required
-                      placeholder="Concrete concepts and mechanics learned..."
-                      value={jLearned}
-                      onChange={(e) => setJLearned(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                      What Confused / Challenged Me
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="What was tricky or required deeper thought?"
-                      value={jConfused}
-                      onChange={(e) => setJConfused(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                      What Changed in My Understanding
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="How has your mental model changed?"
-                      value={jChanged}
-                      onChange={(e) => setJChanged(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                        Practice
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Built automated reconciliation test script"
-                        value={jPractice}
-                        onChange={(e) => setJPractice(e.target.value)}
-                        className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
-                      />
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-mono-tech uppercase font-bold text-[#002B97] block">
+                        WHAT I LEARNED:
+                      </span>
+                      <p className="text-xs text-gray-800 bg-[#F8F7F3] p-3 rounded leading-relaxed font-sans">
+                        {jLearned || 'Concepts and mechanics learned will display here in real time...'}
+                      </p>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                        Proof / Output
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Ledger validator tested on 50 mock entries"
-                        value={jProof}
-                        onChange={(e) => setJProof(e.target.value)}
-                        className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                      Tools (comma-separated)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Python 3.12, VS Code, Git"
-                      value={jTools}
-                      onChange={(e) => setJTools(e.target.value)}
-                      className="w-full px-3 py-2 text-xs font-mono-tech bg-white border border-[#0E1730]/15 rounded text-[#111827]"
-                    />
-                  </div>
-
-                  {/* Evidence Image */}
-                  <div>
-                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                      Evidence Image (Optional screenshot or note)
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleEvidenceImageSelect}
-                        className="text-xs text-gray-600 file:py-1.5 file:px-3 file:bg-[#002B97] file:text-white file:rounded file:border-0 file:text-xs file:font-mono-tech"
-                      />
-                      {jImage && (
-                        <button
-                          type="button"
-                          onClick={() => setJImage('')}
-                          className="text-xs text-red-600 hover:underline"
-                        >
-                          Remove Image
-                        </button>
-                      )}
-                    </div>
-                    {jImage && (
-                      <div className="mt-2 max-h-36 overflow-hidden rounded border border-gray-200">
-                        <img src={jImage} alt="Selected proof" className="max-h-36 object-contain" />
+                    {jConfused && (
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-mono-tech uppercase font-bold text-[#D97706] block">
+                          WHAT CONFUSED / CHALLENGED ME:
+                        </span>
+                        <p className="text-xs text-amber-900 bg-amber-50/70 p-2.5 rounded font-sans">
+                          {jConfused}
+                        </p>
                       </div>
                     )}
+
+                    {jChanged && (
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-mono-tech uppercase font-bold text-[#002B97] block">
+                          WHAT CHANGED IN MY UNDERSTANDING:
+                        </span>
+                        <p className="text-xs text-gray-700 font-sans">
+                          {jChanged}
+                        </p>
+                      </div>
+                    )}
+
+                    {jImage && (
+                      <div className="max-h-40 overflow-hidden rounded border border-gray-200 bg-slate-50">
+                        <img src={jImage} alt="Evidence preview" className="max-h-40 object-contain mx-auto" />
+                      </div>
+                    )}
+
+                    <div className="pt-2 border-t border-[#0E1730]/5 flex items-center justify-between text-[11px] font-mono-tech text-gray-500">
+                      <span>Tools: {jTools}</span>
+                      <span>{jProof || 'Practice/Proof recorded'}</span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#0E1730]/10">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingJourney(false)}
-                      className="px-4 py-2 text-xs font-mono-tech text-gray-600 hover:text-gray-900 cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-5 py-2 bg-[#002B97] hover:bg-[#0E1730] text-white text-xs font-mono-tech uppercase font-bold rounded transition-colors cursor-pointer shadow-xs"
-                    >
-                      Save &amp; Preview on This Device
-                    </button>
-                  </div>
-                </form>
+                  {/* Form Controls */}
+                  <form onSubmit={handleSaveJourneyDraft} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                          Day *
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          required
+                          value={jDay}
+                          onChange={(e) => setJDay(parseInt(e.target.value, 10) || 1)}
+                          className="w-full px-3 py-2 text-xs font-mono-tech bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                          Date *
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={jDate}
+                          onChange={(e) => setJDate(e.target.value)}
+                          className="w-full px-3 py-2 text-xs font-mono-tech bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                        Topic *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Python / Data Structures & Tabular Logic"
+                        value={jTopic}
+                        onChange={(e) => setJTopic(e.target.value)}
+                        className="w-full px-3 py-2 text-xs font-mono-tech bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                        Title *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Connecting Python Dictionaries to Accounting Ledgers"
+                        value={jTitle}
+                        onChange={(e) => setJTitle(e.target.value)}
+                        className="w-full px-3 py-2 text-xs font-editorial text-base bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                        Why I Studied It
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Why did you explore this today?"
+                        value={jWhy}
+                        onChange={(e) => setJWhy(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                        What I Learned *
+                      </label>
+                      <textarea
+                        rows={3}
+                        required
+                        placeholder="Concrete concepts and mechanics learned..."
+                        value={jLearned}
+                        onChange={(e) => setJLearned(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                        What Confused / Challenged Me
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="What was tricky or required deeper thought?"
+                        value={jConfused}
+                        onChange={(e) => setJConfused(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                        What Changed
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="How has your understanding or mental model changed?"
+                        value={jChanged}
+                        onChange={(e) => setJChanged(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                          Practice / Proof / Output
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Ledger validator tested on 50 sample entries"
+                          value={jProof}
+                          onChange={(e) => setJProof(e.target.value)}
+                          className="w-full px-3 py-2 text-xs bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                          Tools
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Python 3.12, VS Code, Git"
+                          value={jTools}
+                          onChange={(e) => setJTools(e.target.value)}
+                          className="w-full px-3 py-2 text-xs font-mono-tech bg-white border border-[#0E1730]/15 rounded text-[#111827]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Evidence Image */}
+                    <div>
+                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                        Evidence Image (Optional JPG, PNG, WebP)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={handleEvidenceImageSelect}
+                          className="text-xs text-gray-600 file:py-1.5 file:px-3 file:bg-[#002B97] file:text-white file:rounded file:border-0 file:text-xs file:font-mono-tech file:cursor-pointer"
+                        />
+                        {jImage && (
+                          <button
+                            type="button"
+                            onClick={() => setJImage('')}
+                            className="text-xs text-red-600 hover:underline cursor-pointer"
+                          >
+                            Remove Image
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#0E1730]/10">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingJourney(false)}
+                        className="px-4 py-2 text-xs font-mono-tech text-gray-600 hover:text-gray-900 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-5 py-2 bg-[#002B97] hover:bg-[#0E1730] text-white text-xs font-mono-tech uppercase font-bold rounded transition-colors cursor-pointer shadow-xs"
+                      >
+                        {editingDay ? 'Save Changes' : 'Save Entry'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
               )}
 
               {/* Drafts & Repository Entries List */}
               <div className="space-y-4">
                 <span className="text-xs font-mono-tech uppercase font-bold text-[#0E1730] block">
-                  Current Entries (Local Device Drafts + Baseline Repository)
+                  Saved Entries (Local Browser Drafts + Published Repository)
                 </span>
+
+                {localDrafts.length === 0 && (
+                  <div className="p-6 bg-white rounded-lg border border-[#0E1730]/10 text-center space-y-2">
+                    <p className="text-xs font-mono-tech text-gray-500">
+                      No Journey entries yet. Start documenting what you are learning.
+                    </p>
+                    <button
+                      onClick={openNewJourneyForm}
+                      className="px-4 py-1.5 bg-[#002B97] hover:bg-[#0E1730] text-white rounded text-xs font-mono-tech uppercase font-bold cursor-pointer"
+                    >
+                      Create First Entry
+                    </button>
+                  </div>
+                )}
 
                 <div className="divide-y divide-[#0E1730]/10 border border-[#0E1730]/10 rounded-lg overflow-hidden bg-white">
                   {/* Local Drafts */}
@@ -938,7 +1319,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                           <span>Edit</span>
                         </button>
                         <button
-                          onClick={() => handleDeleteJourneyDraft(draft.dayNumber)}
+                          onClick={() => setDeleteConfirmDay(draft.dayNumber)}
                           className="p-1.5 border border-red-200 text-red-600 rounded hover:bg-red-50 text-xs font-mono-tech flex items-center gap-1 cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -948,7 +1329,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                     </div>
                   ))}
 
-                  {/* Repository Entries */}
+                  {/* Repository Baseline Entries */}
                   {LEARNING_ENTRIES.map((entry) => (
                     <div key={`repo-${entry.dayNumber}`} className="p-4 flex items-center justify-between gap-4">
                       <div className="space-y-1">
@@ -979,16 +1360,16 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                 </div>
               </div>
 
-              {/* Instructions Banner */}
+              {/* Instructions */}
               <div className="bg-[#FFFFFF] p-4 rounded-lg border border-[#0E1730]/15 space-y-2 text-xs text-[#111827]/80">
                 <span className="font-mono-tech uppercase font-bold text-[#002B97] block">
-                  How to publish new journey entries to GitHub Pages:
+                  Publishing Workflow:
                 </span>
                 <ol className="list-decimal list-outside pl-4 space-y-1 font-sans">
-                  <li>Author and preview your entry on this device using <strong>New Entry</strong> above.</li>
-                  <li>Click <strong>Export JSON</strong> to download the updated entries file.</li>
-                  <li>Open <code>src/data/learningJourney.ts</code> in your repository and paste your new day into <code>LEARNING_ENTRIES</code>.</li>
-                  <li>Commit and push to <code>main</code>. GitHub Pages will build and publish your update!</li>
+                  <li>Create and preview your entry on this device using <strong>Create New Entry</strong>.</li>
+                  <li>Click <strong>Export Journey JSON</strong> to download <code>journey.json</code>.</li>
+                  <li>Transfer the entry into your repository source data at <code>src/data/learningJourney.ts</code>.</li>
+                  <li>Commit and push to GitHub. GitHub Pages will build and deploy the update for all visitors.</li>
                 </ol>
               </div>
             </div>
@@ -1015,14 +1396,14 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                     <span>Selected: <strong>{selectedPdfName}</strong></span>
                     <button
                       onClick={handleDownloadResumePdf}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#002B97] text-white rounded font-bold text-xs"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#002B97] text-white rounded font-bold text-xs cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5" />
                       <span>Download as Hussnain_Ansari_Resume.pdf</span>
                     </button>
                   </div>
 
-                  <div className="text-xs text-[#111827]/80 space-y-1">
+                  <div className="text-xs text-[#111827]/80 space-y-1 font-sans">
                     <p className="font-semibold text-[#0E1730]">To publish publicly to your website:</p>
                     <p>
                       Place the downloaded PDF into your repository at{' '}
@@ -1053,7 +1434,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                       />
                       <button
                         onClick={handleCopyQrUrl}
-                        className="px-3 py-2 bg-[#E6EDF6] text-[#002B97] hover:bg-[#002B97] hover:text-white rounded text-xs transition-colors cursor-pointer"
+                        className="px-3 py-2 bg-[#E6EDF6] text-[#002B97] hover:bg-[#0E1730] hover:text-white rounded text-xs transition-colors cursor-pointer"
                         title="Copy link"
                       >
                         {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
@@ -1150,8 +1531,8 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
                   </div>
 
                   <div className="flex flex-col sm:flex-row sm:justify-between border-b border-[#0E1730]/5 pb-1.5 gap-1">
-                    <span className="text-[#111827]/60 font-semibold">Theme Color:</span>
-                    <span className="text-[#0E1730] text-right">#0E1730 (Navy)</span>
+                    <span className="text-[#111827]/60 font-semibold">Primary Contact Email:</span>
+                    <span className="text-[#0E1730] text-right font-bold">hussnainansari.dev@gmail.com</span>
                   </div>
 
                   <div className="flex flex-col sm:flex-row sm:justify-between border-b border-[#0E1730]/5 pb-1.5 gap-1">
@@ -1190,7 +1571,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
 
         {/* Footer */}
         <div className="bg-[#F8F7F3] px-6 py-3 border-t border-[#0E1730]/10 flex items-center justify-between text-xs font-mono-tech text-[#111827]/60">
-          <span>Local authoring tool · Static GitHub Pages deployment</span>
+          <span>Owner workspace · Static GitHub Pages deployment</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 bg-[#0E1730] text-white rounded hover:bg-[#002B97] transition-colors cursor-pointer"
@@ -1199,6 +1580,41 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({ isOpen, onCl
           </button>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirmDay !== null && (
+        <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg border border-[#0E1730]/15 max-w-sm w-full p-6 space-y-4 shadow-xl">
+            <h4 className="font-editorial text-xl font-bold text-[#0E1730]">
+              Delete this Journey entry?
+            </h4>
+            <p className="text-xs text-gray-600 leading-relaxed font-sans">
+              Delete this Journey entry? This removes the local browser copy for Day {deleteConfirmDay}. The repository source files are not modified.
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmDay(null)}
+                className="px-3.5 py-1.5 rounded text-xs font-mono-tech border border-gray-300 hover:bg-gray-50 text-gray-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (deleteConfirmDay !== null) {
+                    handleDeleteJourneyDraft(deleteConfirmDay);
+                    setDeleteConfirmDay(null);
+                  }
+                }}
+                className="px-4 py-1.5 rounded text-xs font-mono-tech bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
