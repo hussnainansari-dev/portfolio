@@ -34,7 +34,8 @@ import {
   LearningEntry,
   LEARNING_ENTRIES,
   getLocalJourneyEntries,
-  saveLocalJourneyEntries
+  saveLocalJourneyEntries,
+  generateLearningJourneyTsCode
 } from '../data/learningJourney';
 
 interface AdminStudioModalProps {
@@ -95,9 +96,9 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
   const [localDrafts, setLocalDrafts] = useState<LearningEntry[]>([]);
   const [isEditingJourney, setIsEditingJourney] = useState(false);
   const [editingDay, setEditingDay] = useState<number | null>(null);
-  const [jDay, setJDay] = useState<number>(6);
+  const [jDay, setJDay] = useState<number>(1);
   const [jDate, setJDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [jTopic, setJTopic] = useState<string>('');
+  const [jTopic, setJTopic] = useState<string>('Python');
   const [jTitle, setJTitle] = useState<string>('');
   const [jWhy, setJWhy] = useState<string>('');
   const [jLearned, setJLearned] = useState<string>('');
@@ -105,9 +106,10 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
   const [jChanged, setJChanged] = useState<string>('');
   const [jPractice, setJPractice] = useState<string>('');
   const [jProof, setJProof] = useState<string>('');
-  const [jTools, setJTools] = useState<string>('Python 3.12, VS Code');
+  const [jTools, setJTools] = useState<string>('Python, VS Code');
   const [jImage, setJImage] = useState<string>('');
   const [deleteConfirmDay, setDeleteConfirmDay] = useState<number | null>(null);
+  const [copiedTsCode, setCopiedTsCode] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imageObjRef = useRef<HTMLImageElement | null>(null);
@@ -132,11 +134,10 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
       const drafts = getLocalJourneyEntries();
       setLocalDrafts(drafts);
       if (drafts.length > 0) {
-        const maxDay = Math.max(...drafts.map((d) => d.dayNumber), ...LEARNING_ENTRIES.map((d) => d.dayNumber));
+        const maxDay = Math.max(...drafts.map((d) => d.dayNumber));
         setJDay(maxDay + 1);
       } else {
-        const maxDay = Math.max(...LEARNING_ENTRIES.map((d) => d.dayNumber));
-        setJDay(maxDay + 1);
+        setJDay(1);
       }
 
       if (typeof window !== 'undefined') {
@@ -406,18 +407,18 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
 
   const openNewJourneyForm = () => {
     setEditingDay(null);
-    const maxDay = Math.max(...localDrafts.map((d) => d.dayNumber), ...LEARNING_ENTRIES.map((d) => d.dayNumber));
+    const maxDay = localDrafts.length > 0 ? Math.max(...localDrafts.map((d) => d.dayNumber)) : 0;
     setJDay(maxDay + 1);
     setJDate(new Date().toISOString().split('T')[0]);
-    setJTopic('');
+    setJTopic('Python');
     setJTitle('');
     setJWhy('');
     setJLearned('');
     setJConfused('');
     setJChanged('');
     setJPractice('');
-    setJProof('');
-    setJTools('Python 3.12, VS Code');
+    setJProof('Code committed & verified.');
+    setJTools('Python, VS Code');
     setJImage('');
     setIsEditingJourney(true);
   };
@@ -470,19 +471,50 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
     setLocalDrafts(updated);
     saveLocalJourneyEntries(updated);
     setIsEditingJourney(false);
-    setActionSuccess(`Day ${jDay} saved locally! It now appears on this device's public portfolio preview.`);
+    setActionSuccess(`Day ${jDay} ("${jTitle}") saved locally! It now appears on your public portfolio.`);
   };
 
   const handleDeleteJourneyDraft = (dayNum: number) => {
     const updated = localDrafts.filter((d) => d.dayNumber !== dayNum);
     setLocalDrafts(updated);
     saveLocalJourneyEntries(updated);
-    setActionSuccess(`Day ${dayNum} draft removed from local preview.`);
+    setActionSuccess(`Day ${dayNum} removed from portfolio.`);
+  };
+
+  const handleClearAllJourneyEntries = () => {
+    if (confirm('Delete all journey entries? This will clear all entries from your local portfolio.')) {
+      setLocalDrafts([]);
+      saveLocalJourneyEntries([]);
+      setActionSuccess('All journey entries deleted.');
+    }
+  };
+
+  const handleDownloadLearningJourneyTs = () => {
+    const code = generateLearningJourneyTsCode(localDrafts);
+    const blob = new Blob([code], { type: 'text/typescript' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'learningJourney.ts';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setActionSuccess('Downloaded learningJourney.ts! Commit it to src/data/learningJourney.ts on GitHub to publish.');
+  };
+
+  const handleCopyLearningJourneyTs = async () => {
+    const code = generateLearningJourneyTsCode(localDrafts);
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedTsCode(true);
+      setTimeout(() => setCopiedTsCode(false), 2500);
+      setActionSuccess('Copied learningJourney.ts code to clipboard! You can paste it into GitHub to deploy.');
+    } catch {
+      // fallback
+    }
   };
 
   const handleExportJourneyJson = () => {
-    const all = [...localDrafts, ...LEARNING_ENTRIES];
-    const sorted = all.sort((a, b) => b.dayNumber - a.dayNumber);
+    const sorted = [...localDrafts].sort((a, b) => b.dayNumber - a.dayNumber);
     const formatted = JSON.stringify(sorted, null, 2);
 
     const blob = new Blob([formatted], { type: 'application/json' });
@@ -1089,7 +1121,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
                     Journey Studio
                   </h3>
                   <p className="text-xs text-[#4B5563] font-mono-tech">
-                    Learning in Public • Student Journey local preparation system
+                    Author, edit, and assign custom titles to your journey days. Deploy publicly to GitHub.
                   </p>
                 </div>
 
@@ -1099,7 +1131,25 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#002B97] hover:bg-[#0E1730] text-white rounded text-xs font-mono-tech uppercase font-bold transition-colors cursor-pointer shadow-xs"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Create New Entry</span>
+                    <span>Add Journey Day</span>
+                  </button>
+
+                  <button
+                    onClick={handleCopyLearningJourneyTs}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#E6EDF6] hover:bg-[#002B97] hover:text-white text-[#002B97] rounded text-xs font-mono-tech uppercase font-bold transition-colors cursor-pointer border border-[#002B97]/20"
+                    title="Copy learningJourney.ts code to clipboard"
+                  >
+                    {copiedTsCode ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    <span>{copiedTsCode ? 'Copied Code' : 'Copy Code'}</span>
+                  </button>
+
+                  <button
+                    onClick={handleDownloadLearningJourneyTs}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#002B97] hover:bg-[#0E1730] text-white rounded text-xs font-mono-tech uppercase font-bold transition-colors cursor-pointer shadow-xs"
+                    title="Download learningJourney.ts for permanent GitHub deployment"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download .ts File</span>
                   </button>
 
                   <label className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#F1F3F5] hover:bg-gray-200 text-[#0E1730] rounded text-xs font-mono-tech uppercase font-bold transition-colors cursor-pointer border border-[#0E1730]/10">
@@ -1115,12 +1165,23 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
 
                   <button
                     onClick={handleExportJourneyJson}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#E6EDF6] hover:bg-[#002B97] hover:text-white text-[#002B97] rounded text-xs font-mono-tech uppercase font-bold transition-colors cursor-pointer border border-[#002B97]/20"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#F1F3F5] hover:bg-gray-200 text-[#0E1730] rounded text-xs font-mono-tech uppercase font-bold transition-colors cursor-pointer border border-[#0E1730]/10"
                     title="Export local journey entries as journey.json"
                   >
                     <Download className="w-4 h-4" />
-                    <span>Export Journey JSON</span>
+                    <span>JSON</span>
                   </button>
+
+                  {localDrafts.length > 0 && (
+                    <button
+                      onClick={handleClearAllJourneyEntries}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-2 text-red-600 hover:bg-red-50 rounded text-xs font-mono-tech transition-colors cursor-pointer"
+                      title="Clear all entries"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Clear All</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1129,12 +1190,12 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
                 <div className="space-y-6 bg-[#F8F7F3] p-5 sm:p-6 rounded-lg border border-[#0E1730]/15 animate-fadeIn">
                   <div className="flex items-center justify-between border-b border-[#0E1730]/10 pb-3">
                     <span className="text-xs font-mono-tech font-bold uppercase text-[#002B97]">
-                      {editingDay ? `Editing Day ${editingDay}` : 'Create New Entry'}
+                      {editingDay ? `Editing Day ${editingDay}` : 'Create New Journey Day'}
                     </span>
                     <button
                       type="button"
                       onClick={() => setIsEditingJourney(false)}
-                      className="p-1 text-gray-500 hover:text-gray-800"
+                      className="p-1 text-gray-500 hover:text-gray-800 cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -1154,7 +1215,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
                     </div>
 
                     <h4 className="font-editorial text-xl font-bold text-[#0E1730]">
-                      {jTitle || 'Headline / Title'}
+                      {jTitle || 'Headline / Title Name'}
                     </h4>
 
                     {jWhy && (
@@ -1211,7 +1272,7 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                          Day *
+                          Assign Day Number *
                         </label>
                         <input
                           type="number"
@@ -1239,7 +1300,24 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
 
                     <div>
                       <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                        Topic *
+                        Assign Day Title / Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Python Fundamentals & Connecting Dicts to Accounting Ledgers"
+                        value={jTitle}
+                        onChange={(e) => setJTitle(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-sm font-editorial font-bold bg-white border border-[#002B97]/30 rounded text-[#0E1730] focus:outline-none focus:border-[#002B97]"
+                      />
+                      <span className="text-[11px] text-gray-500 font-sans block mt-1">
+                        Assign a custom headline name for this day of your journey.
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
+                        Topic / Discipline *
                       </label>
                       <input
                         type="text"
@@ -1248,20 +1326,6 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
                         value={jTopic}
                         onChange={(e) => setJTopic(e.target.value)}
                         className="w-full px-3 py-2 text-xs font-mono-tech bg-white border border-[#0E1730]/15 rounded text-[#111827]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1">
-                        Title *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Connecting Python Dictionaries to Accounting Ledgers"
-                        value={jTitle}
-                        onChange={(e) => setJTitle(e.target.value)}
-                        className="w-full px-3 py-2 text-xs font-editorial text-base bg-white border border-[#0E1730]/15 rounded text-[#111827]"
                       />
                     </div>
 
@@ -1389,103 +1453,103 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
                 </div>
               )}
 
-              {/* Drafts & Repository Entries List */}
+              {/* Saved Entries List */}
               <div className="space-y-4">
-                <span className="text-xs font-mono-tech uppercase font-bold text-[#0E1730] block">
-                  Saved Entries (Local Browser Drafts + Published Repository)
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono-tech uppercase font-bold text-[#0E1730] block">
+                    Your Journey Entries ({localDrafts.length})
+                  </span>
+                  <span className="text-[11px] font-mono-tech text-gray-500">
+                    Active on this browser preview
+                  </span>
+                </div>
 
                 {localDrafts.length === 0 && (
-                  <div className="p-6 bg-white rounded-lg border border-[#0E1730]/10 text-center space-y-2">
-                    <p className="text-xs font-mono-tech text-gray-500">
-                      No Journey entries yet. Start documenting what you are learning.
+                  <div className="p-8 bg-white rounded-lg border border-[#0E1730]/10 text-center space-y-3">
+                    <BookOpen className="w-8 h-8 text-[#002B97] mx-auto opacity-70" />
+                    <p className="text-xs font-mono-tech text-gray-600 max-w-sm mx-auto">
+                      No Journey entries yet. Start documenting what you are learning by assigning your own day titles and field notes.
                     </p>
                     <button
                       onClick={openNewJourneyForm}
-                      className="px-4 py-1.5 bg-[#002B97] hover:bg-[#0E1730] text-white rounded text-xs font-mono-tech uppercase font-bold cursor-pointer"
+                      className="px-4 py-2 bg-[#002B97] hover:bg-[#0E1730] text-white rounded text-xs font-mono-tech uppercase font-bold cursor-pointer transition-colors shadow-xs"
                     >
-                      Create First Entry
+                      Create First Journey Day
                     </button>
                   </div>
                 )}
 
-                <div className="divide-y divide-[#0E1730]/10 border border-[#0E1730]/10 rounded-lg overflow-hidden bg-white">
-                  {/* Local Drafts */}
-                  {localDrafts.map((draft) => (
-                    <div key={`draft-${draft.dayNumber}`} className="p-4 bg-amber-50/40 flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-xs font-mono-tech">
-                          <span className="font-bold text-[#002B97]">DAY {String(draft.dayNumber).padStart(2, '0')}</span>
-                          <span className="px-1.5 py-0.2 bg-amber-200 text-amber-900 rounded text-[9px] font-bold uppercase">
-                            Local Device Preview
-                          </span>
-                          <span className="text-gray-400">·</span>
-                          <span className="text-gray-600">{draft.date}</span>
+                {localDrafts.length > 0 && (
+                  <div className="divide-y divide-[#0E1730]/10 border border-[#0E1730]/10 rounded-lg overflow-hidden bg-white">
+                    {localDrafts.map((draft) => (
+                      <div key={`draft-${draft.dayNumber}`} className="p-4 bg-white hover:bg-slate-50/70 transition-colors flex items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-xs font-mono-tech">
+                            <span className="font-bold text-[#002B97]">DAY {String(draft.dayNumber).padStart(2, '0')}</span>
+                            <span className="text-gray-400">·</span>
+                            <span className="text-gray-600 font-semibold">{draft.topic}</span>
+                            <span className="text-gray-400">·</span>
+                            <span className="text-gray-500">{draft.date}</span>
+                          </div>
+                          <h4 className="font-editorial text-base font-bold text-[#0E1730]">{draft.shortTitle}</h4>
+                          <p className="text-xs text-gray-600 line-clamp-1">{draft.whatILearned}</p>
                         </div>
-                        <h4 className="font-editorial text-base font-bold text-[#0E1730]">{draft.shortTitle}</h4>
-                        <p className="text-xs text-gray-600 line-clamp-1">{draft.whatILearned}</p>
-                      </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => openEditJourneyForm(draft)}
-                          className="p-1.5 border border-gray-300 rounded hover:bg-gray-100 text-xs font-mono-tech flex items-center gap-1 cursor-pointer"
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirmDay(draft.dayNumber)}
-                          className="p-1.5 border border-red-200 text-red-600 rounded hover:bg-red-50 text-xs font-mono-tech flex items-center gap-1 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Delete</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Repository Baseline Entries */}
-                  {LEARNING_ENTRIES.map((entry) => (
-                    <div key={`repo-${entry.dayNumber}`} className="p-4 flex items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-xs font-mono-tech">
-                          <span className="font-bold text-[#002B97]">DAY {String(entry.dayNumber).padStart(2, '0')}</span>
-                          <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded text-[9px] font-bold uppercase">
-                            Published in Repo
-                          </span>
-                          <span className="text-gray-400">·</span>
-                          <span className="text-gray-600">{entry.date}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => openEditJourneyForm(draft)}
+                            className="p-1.5 border border-gray-300 rounded hover:bg-gray-100 text-xs font-mono-tech flex items-center gap-1 cursor-pointer"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirmDay(draft.dayNumber)}
+                            className="p-1.5 border border-red-200 text-red-600 rounded hover:bg-red-50 text-xs font-mono-tech flex items-center gap-1 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
                         </div>
-                        <h4 className="font-editorial text-base font-bold text-[#0E1730]">{entry.shortTitle}</h4>
-                        <p className="text-xs text-gray-600 line-clamp-1">{entry.whatILearned}</p>
                       </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => openEditJourneyForm(entry)}
-                          className="p-1.5 border border-gray-300 rounded hover:bg-gray-100 text-xs font-mono-tech flex items-center gap-1 cursor-pointer"
-                          title="Copy details into editor as draft"
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                          <span>Edit as Draft</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* Instructions */}
-              <div className="bg-[#FFFFFF] p-4 rounded-lg border border-[#0E1730]/15 space-y-2 text-xs text-[#111827]/80">
-                <span className="font-mono-tech uppercase font-bold text-[#002B97] block">
-                  Publishing Workflow:
-                </span>
-                <ol className="list-decimal list-outside pl-4 space-y-1 font-sans">
-                  <li>Create and preview your entry on this device using <strong>Create New Entry</strong>.</li>
-                  <li>Click <strong>Export Journey JSON</strong> to download <code>journey.json</code>.</li>
-                  <li>Transfer the entry into your repository source data at <code>src/data/learningJourney.ts</code>.</li>
-                  <li>Commit and push to GitHub. GitHub Pages will build and deploy the update for all visitors.</li>
+              {/* Deploy to GitHub Pages Guide */}
+              <div className="bg-[#FFFFFF] p-5 rounded-lg border-2 border-[#002B97]/20 shadow-xs space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#0E1730]/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-[#002B97]" />
+                    <span className="font-mono-tech uppercase font-bold text-[#002B97] text-xs">
+                      How to Publicly Publish &amp; Deploy on GitHub:
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleCopyLearningJourneyTs}
+                      className="px-3 py-1.5 bg-[#E6EDF6] hover:bg-[#002B97] hover:text-white text-[#002B97] rounded text-xs font-mono-tech flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      {copiedTsCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedTsCode ? 'Copied!' : 'Copy Code'}</span>
+                    </button>
+                    <button
+                      onClick={handleDownloadLearningJourneyTs}
+                      className="px-3 py-1.5 bg-[#002B97] hover:bg-[#0E1730] text-white rounded text-xs font-mono-tech flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download learningJourney.ts</span>
+                    </button>
+                  </div>
+                </div>
+
+                <ol className="list-decimal list-outside pl-4 space-y-1.5 text-xs text-[#111827]/80 font-sans leading-relaxed">
+                  <li>Author, edit, or delete any journey days using the buttons above.</li>
+                  <li>Click <strong>Download learningJourney.ts</strong> (or <strong>Copy Code</strong>).</li>
+                  <li>In your GitHub repository (<code>hussnainansari-dev/portfolio</code>), navigate to: <code>src/data/learningJourney.ts</code>.</li>
+                  <li>Replace the file with your downloaded/copied code and commit to <code>main</code>.</li>
+                  <li>GitHub Actions will build and deploy your updated portfolio automatically in ~1 minute!</li>
                 </ol>
               </div>
             </div>
