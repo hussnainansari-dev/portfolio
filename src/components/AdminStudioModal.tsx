@@ -27,7 +27,8 @@ import {
   ShieldCheck,
   KeyRound,
   LogOut,
-  UserCheck
+  UserCheck,
+  Mail
 } from 'lucide-react';
 import {
   LearningEntry,
@@ -59,6 +60,11 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
   });
   const [passcodeInput, setPasscodeInput] = useState('');
   const [passcodeError, setPasscodeError] = useState<string | null>(null);
+
+  // Forgot Password / Email Recovery state
+  const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
   // Photo state
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -145,16 +151,11 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
   // Owner Authentication handlers
   const handleOwnerLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = passcodeInput.trim().toLowerCase();
-    const customPin = localStorage.getItem('hussnain_owner_custom_pin')?.toLowerCase();
+    const input = passcodeInput.trim();
+    const customPin = localStorage.getItem('hussnain_owner_custom_pin');
 
-    if (
-      (customPin && clean === customPin) ||
-      clean === '2026' ||
-      clean === 'ansari2026' ||
-      clean === 'hussnainansari.dev@gmail.com' ||
-      clean === 'hussnain'
-    ) {
+    // Owner password is strictly $H451590m (or custom pin if set by owner)
+    if (input === '$H451590m' || (customPin && input === customPin)) {
       try {
         localStorage.setItem('hussnain_owner_authenticated', 'true');
       } catch {
@@ -165,7 +166,27 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
       setPasscodeInput('');
       setActionSuccess('Owner verified: Welcome, Hussnain.');
     } else {
-      setPasscodeError('Access restricted. Enter the owner passcode (default: 2026 or ansari2026).');
+      setPasscodeError('Incorrect owner password. If you forgot your password, recover access via your email below.');
+    }
+  };
+
+  const handleRecoverByEmail = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = recoveryEmail.trim().toLowerCase();
+
+    if (cleanEmail === 'hussnainansari.dev@gmail.com') {
+      try {
+        localStorage.setItem('hussnain_owner_authenticated', 'true');
+      } catch {
+        // Fallback
+      }
+      setIsOwnerAuthenticated(true);
+      setIsRecoveringPassword(false);
+      setRecoveryError(null);
+      setRecoveryEmail('');
+      setActionSuccess('Owner identity verified via hussnainansari.dev@gmail.com! Studio unlocked.');
+    } else {
+      setRecoveryError('Unrecognized recovery email. Only your registered owner email (hussnainansari.dev@gmail.com) can recover access.');
     }
   };
 
@@ -592,10 +613,10 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
               </div>
               <div>
                 <h3 className="font-editorial text-lg font-bold leading-tight">
-                  Owner-Only Studio
+                  {isRecoveringPassword ? 'Password Recovery' : 'Owner-Only Studio'}
                 </h3>
                 <span className="text-[11px] font-mono-tech text-white/60">
-                  Profile Photo &amp; Admin Tools
+                  {isRecoveringPassword ? 'Identity Verification via Email' : 'Profile Photo & Admin Tools'}
                 </span>
               </div>
             </div>
@@ -611,62 +632,157 @@ export const AdminStudioModal: React.FC<AdminStudioModalProps> = ({
 
           {/* Body */}
           <div className="p-6 space-y-5">
-            <div className="p-3 bg-[#E6EDF6] text-[#002B97] rounded-lg border border-[#002B97]/20 flex items-start gap-2.5 text-xs font-sans">
-              <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold font-mono-tech uppercase block text-[11px] mb-0.5">
-                  Private Access Control
-                </span>
-                <p className="leading-relaxed">
-                  This upload and authoring section is restricted to the site owner, <strong>Hussnain Ansari</strong> (<code>hussnainansari.dev@gmail.com</code>).
-                </p>
-              </div>
-            </div>
+            {!isRecoveringPassword ? (
+              <>
+                <div className="p-3 bg-[#E6EDF6] text-[#002B97] rounded-lg border border-[#002B97]/20 flex items-start gap-2.5 text-xs font-sans">
+                  <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold font-mono-tech uppercase block text-[11px] mb-0.5">
+                      Private Access Control
+                    </span>
+                    <p className="leading-relaxed">
+                      This upload and authoring section is restricted exclusively to the site owner, <strong>Hussnain Ansari</strong>.
+                    </p>
+                  </div>
+                </div>
 
-            {passcodeError && (
-              <div className="p-3 bg-red-50 text-red-800 rounded-lg border border-red-200 text-xs font-mono-tech flex items-center gap-2 animate-shake">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
-                <span>{passcodeError}</span>
-              </div>
+                {passcodeError && (
+                  <div className="p-3 bg-red-50 text-red-800 rounded-lg border border-red-200 text-xs font-mono-tech flex items-center gap-2 animate-shake">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
+                    <span>{passcodeError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleOwnerLogin} className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-mono-tech uppercase font-semibold text-[#0E1730] flex items-center gap-1.5">
+                        <KeyRound className="w-3.5 h-3.5 text-[#002B97]" />
+                        <span>Enter Owner Password</span>
+                      </label>
+                    </div>
+                    <input
+                      type="password"
+                      autoFocus
+                      required
+                      placeholder="Enter password"
+                      value={passcodeInput}
+                      onChange={(e) => setPasscodeInput(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-sm font-mono-tech bg-[#F8F7F3] border border-[#0E1730]/20 rounded-lg text-[#111827] focus:outline-none focus:border-[#002B97] focus:bg-white transition-colors"
+                    />
+                    <div className="flex items-center justify-between mt-2 text-[11px]">
+                      <span className="text-gray-500 font-sans">
+                        Protected with confidential password.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRecoveringPassword(true);
+                          setPasscodeError(null);
+                          setRecoveryError(null);
+                        }}
+                        className="font-mono-tech text-[#002B97] hover:underline cursor-pointer"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-4 py-2 text-xs font-mono-tech text-gray-600 hover:text-gray-900 cursor-pointer"
+                    >
+                      Return to Portfolio
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 bg-[#002B97] hover:bg-[#0E1730] text-white text-xs font-mono-tech uppercase font-bold rounded-lg transition-colors cursor-pointer shadow-sm flex items-center gap-2"
+                    >
+                      <Unlock className="w-4 h-4" />
+                      <span>Unlock Studio</span>
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <>
+                <div className="p-3 bg-[#E6EDF6] text-[#002B97] rounded-lg border border-[#002B97]/20 flex items-start gap-2.5 text-xs font-sans">
+                  <Mail className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold font-mono-tech uppercase block text-[11px] mb-0.5">
+                      Email Identity Recovery
+                    </span>
+                    <p className="leading-relaxed">
+                      Forgot your password? Enter your registered owner email to verify your identity and restore access.
+                    </p>
+                  </div>
+                </div>
+
+                {recoveryError && (
+                  <div className="p-3 bg-red-50 text-red-800 rounded-lg border border-red-200 text-xs font-mono-tech flex items-center gap-2 animate-shake">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
+                    <span>{recoveryError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleRecoverByEmail} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1.5 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-[#002B97]" />
+                      <span>Registered Owner Email</span>
+                    </label>
+                    <input
+                      type="email"
+                      autoFocus
+                      required
+                      placeholder="hussnainansari.dev@gmail.com"
+                      value={recoveryEmail}
+                      onChange={(e) => setRecoveryEmail(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-sm font-mono-tech bg-[#F8F7F3] border border-[#0E1730]/20 rounded-lg text-[#111827] focus:outline-none focus:border-[#002B97] focus:bg-white transition-colors"
+                    />
+                    <div className="flex items-center justify-between mt-2 text-[11px]">
+                      <span className="text-gray-500 font-sans">
+                        Registered: <code>hussnainansari.dev@gmail.com</code>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRecoveringPassword(false);
+                          setPasscodeError(null);
+                          setRecoveryError(null);
+                        }}
+                        className="font-mono-tech text-[#002B97] hover:underline cursor-pointer"
+                      >
+                        ← Back to login
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsRecoveringPassword(false);
+                        setPasscodeError(null);
+                        setRecoveryError(null);
+                      }}
+                      className="px-4 py-2 text-xs font-mono-tech text-gray-600 hover:text-gray-900 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 bg-[#002B97] hover:bg-[#0E1730] text-white text-xs font-mono-tech uppercase font-bold rounded-lg transition-colors cursor-pointer shadow-sm flex items-center gap-2"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Verify &amp; Unlock</span>
+                    </button>
+                  </div>
+                </form>
+              </>
             )}
-
-            <form onSubmit={handleOwnerLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-mono-tech uppercase font-semibold text-[#0E1730] mb-1.5 flex items-center gap-1.5">
-                  <KeyRound className="w-3.5 h-3.5 text-[#002B97]" />
-                  <span>Enter Owner Passcode</span>
-                </label>
-                <input
-                  type="password"
-                  autoFocus
-                  required
-                  placeholder="Enter passcode (e.g. 2026)"
-                  value={passcodeInput}
-                  onChange={(e) => setPasscodeInput(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm font-mono-tech bg-[#F8F7F3] border border-[#0E1730]/20 rounded-lg text-[#111827] focus:outline-none focus:border-[#002B97] focus:bg-white transition-colors"
-                />
-                <span className="text-[11px] text-gray-500 font-sans block mt-1">
-                  Default passcode: <code>2026</code> or <code>ansari2026</code> (or your registered email).
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 text-xs font-mono-tech text-gray-600 hover:text-gray-900 cursor-pointer"
-                >
-                  Return to Portfolio
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 bg-[#002B97] hover:bg-[#0E1730] text-white text-xs font-mono-tech uppercase font-bold rounded-lg transition-colors cursor-pointer shadow-sm flex items-center gap-2"
-                >
-                  <Unlock className="w-4 h-4" />
-                  <span>Unlock Studio</span>
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       </div>
